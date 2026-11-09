@@ -7,12 +7,15 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +66,9 @@ fun SettingsDialog(
     language: String,
     autoStartOnLaunch: Boolean,
     notificationMode: String,
+    showNotificationWarning: Boolean,
+    onOpenNotificationSettings: () -> Unit,
+    onHideNotificationWarning: () -> Unit,
     onLanguageChange: (String) -> Unit,
     onAutoStartChange: (Boolean) -> Unit,
     onNotificationModeChange: (String) -> Unit,
@@ -71,6 +77,8 @@ fun SettingsDialog(
     onOpenGithub: () -> Unit,
     onOpenContact: () -> Unit,
     onAddQsTile: () -> Unit,
+    widgetPinningSupported: Boolean,
+    onAddWidget: () -> Unit,
 ) {
     val qsTilePlacementSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
@@ -182,6 +190,12 @@ fun SettingsDialog(
                             onClick = { onNotificationModeChange(PreferencesRepository.NOTIF_INTERACTIVE) },
                         )
                     }
+                    if (notificationMode == PreferencesRepository.NOTIF_INTERACTIVE && showNotificationWarning) {
+                        NotificationPermissionWarning(
+                            onOpenSettings = onOpenNotificationSettings,
+                            onHide = onHideNotificationWarning,
+                        )
+                    }
                     Text(
                         text = stringResource(R.string.settings_notification_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -223,6 +237,26 @@ fun SettingsDialog(
                         color = DarkenPalette.NavyTrack,
                     )
 
+                    SectionTitle(stringResource(R.string.settings_widget))
+                    Text(
+                        text = stringResource(
+                            if (widgetPinningSupported) R.string.settings_widget_hint
+                            else R.string.settings_widget_hint_manual,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DarkenPalette.TextMuted,
+                    )
+                    if (widgetPinningSupported) {
+                        TextButton(onClick = onAddWidget) {
+                            Text(stringResource(R.string.settings_widget_button), color = DarkenPalette.Gold)
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = SettingsDividerPadding),
+                        color = DarkenPalette.NavyTrack,
+                    )
+
                     SectionTitle(stringResource(R.string.settings_about))
                     SettingsLink(
                         label = stringResource(R.string.settings_privacy),
@@ -248,6 +282,45 @@ fun SettingsDialog(
                             Text(stringResource(R.string.settings_close), color = DarkenPalette.Gold)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NotificationPermissionWarning(
+    onOpenSettings: () -> Unit,
+    onHide: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = DarkenPalette.NavyMid,
+        border = BorderStroke(1.dp, DarkenPalette.Gold.copy(alpha = 0.25f)),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = stringResource(R.string.settings_notification_warning_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = DarkenPalette.Gold,
+            )
+            Text(
+                text = stringResource(R.string.settings_notification_warning_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = DarkenPalette.TextMuted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = onOpenSettings) {
+                    Text(stringResource(R.string.settings_notification_open_settings), color = DarkenPalette.Gold)
+                }
+                TextButton(onClick = onHide) {
+                    Text(stringResource(R.string.settings_notification_hide_warning), color = DarkenPalette.TextMuted)
                 }
             }
         }

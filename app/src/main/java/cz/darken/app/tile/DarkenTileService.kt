@@ -2,7 +2,6 @@ package cz.darken.app.tile
 
 import android.content.ComponentName
 import android.content.Context
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import cz.darken.app.R
@@ -35,14 +34,12 @@ class DarkenTileService : TileService() {
 
     private fun updateTileState() {
         val tile = qsTile ?: return
-        val active = OverlayLauncher.isOverlayActive(this)
+        val active = OverlayLauncher.isOverlayActive()
         tile.state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.subtitle = getString(
             if (active) R.string.qs_tile_subtitle_on else R.string.qs_tile_subtitle_off,
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            tile.stateDescription = tile.subtitle
-        }
+        tile.stateDescription = tile.subtitle
         tile.updateTile()
     }
 
@@ -63,7 +60,6 @@ class DarkenTileService : TileService() {
         }
 
         fun requestTileUpdate(context: Context) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
             val component = ComponentName(context, DarkenTileService::class.java)
             requestListeningState(context, component)
         }

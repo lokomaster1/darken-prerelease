@@ -85,7 +85,7 @@ class DarkenAppWidgetProvider : AppWidgetProvider() {
                 AppWidgetManager.OPTION_APPWIDGET_SIZES,
                 SizeF::class.java,
             ).orEmpty().filter { it.width > 0f && it.height > 0f }.distinct()
-            val active = OverlayLauncher.isOverlayActive(context)
+            val active = OverlayLauncher.isOverlayActive()
             val toggle = togglePendingIntent(context, appWidgetId)
             val views = if (sizes.size in 1..MAX_REMOTE_VIEWS_SIZES) {
                 RemoteViews(sizes.associateWith { buildRemoteViews(context, it, active, toggle) })

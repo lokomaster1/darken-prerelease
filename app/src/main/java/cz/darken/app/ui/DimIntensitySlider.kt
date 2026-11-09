@@ -26,11 +26,12 @@ fun DimIntensitySlider(
     onValueChange: (Int) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .padding(vertical = if (compact) 0.dp else 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Slider(
@@ -42,7 +43,7 @@ fun DimIntensitySlider(
             modifier = Modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    scaleY = ThicknessScale
+                    scaleY = if (compact) 1f else ThicknessScale
                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                 },
             colors = SliderDefaults.colors(

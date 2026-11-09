@@ -1,7 +1,7 @@
 package cz.darken.app.ui
 
 import cz.darken.app.R
-import cz.darken.app.overlay.OverlayTint
+import cz.darken.app.model.OverlayTint
 
 internal val filterColorPalette = mapOf(
     OverlayTint.GrayArgb to R.string.palette_black,

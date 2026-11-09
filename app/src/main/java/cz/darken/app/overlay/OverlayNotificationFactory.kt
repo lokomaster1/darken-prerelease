@@ -89,6 +89,7 @@ object OverlayNotificationFactory {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsedViews)
             .setCustomBigContentView(expandedViews)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)

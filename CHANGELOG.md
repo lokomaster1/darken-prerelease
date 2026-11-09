@@ -1,13 +1,21 @@
 # Changelog
 
+## 1.3.4
+
+- Refined the main screen layout for compact displays and temporarily kept portrait orientation.
+- Added independent intensity previews for custom colors and refined color editing, preset handling, and related translations.
+- Added widget placement settings and refined widget, notification, and launcher presentation.
+- Improved notification-permission guidance and system-settings navigation with fallbacks.
+- Refactored overlay and screen state management for more reliable synchronization across the app, Quick Settings tile, widget, and notifications.
+- Added regression tests and completed architecture and lint cleanup.
+
 ## 1.3.2
 
 - Save custom filter colors in three reusable presets. Built-in colors use their names, and other colors use their slot numbers.
 - Load or reset presets from the color picker. Tap a selected palette color again to clear the selection.
 - Keep preset controls visible while entering a hex color on smaller screens.
 - Remember whether the filter color card is expanded and synchronize dimming controls with the Quick Settings tile and widget.
-- Refine the home screen widget
-- An in-depth automated security review, followed by privacy and security improvements.
+- Refine the home screen widget and disable Android backup and device-to-device transfer for app data.
 
 ## 1.3.1
 

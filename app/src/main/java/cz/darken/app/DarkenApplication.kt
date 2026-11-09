@@ -1,7 +1,7 @@
 package cz.darken.app
 
 import android.app.Application
-import android.content.pm.PackageManager
+import androidx.core.content.edit
 import androidx.core.content.pm.PackageInfoCompat
 import cz.darken.app.data.PreferencesRepository
 import cz.darken.app.locale.LocaleHelper
@@ -36,7 +36,7 @@ class DarkenApplication : Application() {
         }
 
         if (lastVersionCode != currentVersionCode) {
-            prefs.edit().putInt(KEY_LAST_VERSION_CODE, currentVersionCode).apply()
+            prefs.edit { putInt(KEY_LAST_VERSION_CODE, currentVersionCode) }
         }
     }
 

@@ -1,7 +1,5 @@
-package cz.darken.app.overlay
+package cz.darken.app.model
 
-import androidx.compose.ui.graphics.Color
-import cz.darken.app.data.PreferencesRepository
 
 object OverlayTint {
 
@@ -26,8 +24,6 @@ object OverlayTint {
         else -> GrayArgb
     }
 
-    fun toComposeColor(argb: Int): Color = Color(argb)
-
     fun parseHexColor(input: String): Int? {
         val cleaned = input.trim().removePrefix("#")
         if (cleaned.length != 6 && cleaned.length != 8) return null
@@ -44,6 +40,6 @@ object OverlayTint {
     }
 
     fun alphaForDimLevel(dimLevel: Int): Float =
-        dimLevel.coerceIn(PreferencesRepository.MIN_DIM, PreferencesRepository.MAX_DIM) /
-            PreferencesRepository.MAX_DIM.toFloat()
+        dimLevel.coerceIn(DimLevel.MIN, DimLevel.MAX) /
+            DimLevel.MAX.toFloat()
 }

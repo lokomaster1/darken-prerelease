@@ -1,0 +1,3 @@
+Refined the main screen layout and custom color workflow.
+Improved overlay synchronization across the app, Quick Settings tile, widget, and notifications.
+Added widget placement settings, better permission guidance, settings fallbacks, regression tests, and architecture cleanup.

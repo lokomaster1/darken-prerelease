@@ -1,11 +1,16 @@
 package cz.darken.app.util
 
+import android.app.Activity
+import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.net.toUri
 import androidx.core.content.getSystemService
+import androidx.core.app.NotificationManagerCompat
+import cz.darken.app.overlay.OverlayService
 
 object PermissionIntents {
 
@@ -17,44 +22,77 @@ object PermissionIntents {
         return powerManager.isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    /**
-     * Opens overlay permission for this app, or app details as fallback
-     * (some OEMs hide the app until [SYSTEM_ALERT_WINDOW] is declared in the manifest).
-     */
-    fun overlaySettings(context: Context): Intent {
-        val packageUri = Uri.parse("package:${context.packageName}")
-        val overlayIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, packageUri)
-        if (overlayIntent.resolveActivity(context.packageManager) != null) {
-            return overlayIntent
-        }
-        return appDetailsSettings(context)
-    }
+    /** Try the system screen directly; package visibility must not decide availability. */
+    fun openOverlaySettings(context: Context): Boolean = openFirstAvailable(
+        context,
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri()),
+        appDetailsSettings(context),
+    )
 
     fun appDetailsSettings(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
 
-    fun notificationSettings(context: Context): Intent {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+    private fun notificationSettings(context: Context): Intent =
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        return if (intent.resolveActivity(context.packageManager) != null) {
-            intent
-        } else {
-            appDetailsSettings(context)
+
+    fun openNotificationSettings(context: Context): Boolean = openFirstAvailable(
+        context, notificationSettings(context), appDetailsSettings(context),
+    )
+
+    fun areInteractiveNotificationsEnabled(context: Context): Boolean {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        val manager = context.getSystemService<NotificationManager>() ?: return false
+        val channel = manager.getNotificationChannel(OverlayService.CHANNEL_INTERACTIVE)
+        // A channel that has not been created yet is not blocked by the user.
+        return channel?.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    fun openInteractiveNotificationSettings(context: Context): Boolean {
+        val manager = context.getSystemService<NotificationManager>()
+        val channel = manager?.getNotificationChannel(OverlayService.CHANNEL_INTERACTIVE)
+        if (NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+            channel?.importance == NotificationManager.IMPORTANCE_NONE
+        ) {
+            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, OverlayService.CHANNEL_INTERACTIVE)
+            return openFirstAvailable(
+                context, intent, notificationSettings(context), appDetailsSettings(context),
+            )
         }
+        return openNotificationSettings(context)
     }
 
     fun requestIgnoreBatteryOptimizations(context: Context): Intent =
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
 
-    fun batteryOptimizationSettings(context: Context): Intent {
-        val request = requestIgnoreBatteryOptimizations(context)
-        if (request.resolveActivity(context.packageManager) != null) {
-            return request
+    fun openBatteryOptimizationSettings(context: Context): Boolean = openFirstAvailable(
+        context,
+        requestIgnoreBatteryOptimizations(context),
+        Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
+        appDetailsSettings(context),
+    )
+
+    fun openAppDetailsSettings(context: Context): Boolean =
+        openFirstAvailable(context, appDetailsSettings(context))
+
+    private fun openFirstAvailable(context: Context, vararg intents: Intent): Boolean {
+        for (intent in intents) {
+            if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return true
+            } catch (_: ActivityNotFoundException) {
+                // Manufacturer-specific settings screens may not be available.
+            } catch (_: SecurityException) {
+                // Try a more general screen if the manufacturer restricts access.
+            }
         }
-        return Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        return false
     }
 }

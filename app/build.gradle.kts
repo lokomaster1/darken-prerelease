@@ -12,8 +12,8 @@ android {
         applicationId = "cz.darken.app"
         minSdk = 31
         targetSdk = 34
-        versionCode = 17
-        versionName = "1.3.2"
+        versionCode = 19
+        versionName = "1.3.4"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -45,13 +45,18 @@ android {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+
     val composeBom = platform("androidx.compose:compose-bom:2025.04.01")
 
     implementation("androidx.core:core-ktx:1.16.0")
+    // The manifest configures this provider directly to disable automatic emoji initialization.
+    implementation("androidx.startup:startup-runtime:1.1.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.0")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")

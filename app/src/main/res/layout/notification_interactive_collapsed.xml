@@ -13,7 +13,7 @@
         <TextView
             android:id="@+id/action_minus5"
             style="@style/NotificationActionTextCollapsed"
-            android:text="&lt;&lt;" />
+            android:text="@string/notification_control_decrease_large" />
     </FrameLayout>
 
     <FrameLayout
@@ -22,7 +22,7 @@
         <TextView
             android:id="@+id/action_minus1"
             style="@style/NotificationActionTextCollapsed"
-            android:text="&lt;" />
+            android:text="@string/notification_control_decrease" />
     </FrameLayout>
 
     <FrameLayout
@@ -39,7 +39,7 @@
         <TextView
             android:id="@+id/action_stop"
             style="@style/NotificationActionTextCollapsed"
-            android:text="X" />
+            android:text="@string/notification_control_stop" />
     </FrameLayout>
 
     <FrameLayout
@@ -48,7 +48,7 @@
         <TextView
             android:id="@+id/action_plus1"
             style="@style/NotificationActionTextCollapsed"
-            android:text="&gt;" />
+            android:text="@string/notification_control_increase" />
     </FrameLayout>
 
     <FrameLayout
@@ -57,6 +57,6 @@
         <TextView
             android:id="@+id/action_plus5"
             style="@style/NotificationActionTextCollapsed"
-            android:text="&gt;&gt;" />
+            android:text="@string/notification_control_increase_large" />
     </FrameLayout>
 </LinearLayout>

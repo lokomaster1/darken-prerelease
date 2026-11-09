@@ -3,7 +3,6 @@ package cz.darken.app.overlay
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -14,16 +13,28 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
-import cz.darken.app.MainActivity
 import cz.darken.app.MainActivityHolder
 import cz.darken.app.R
 import cz.darken.app.data.PreferencesRepository
+import cz.darken.app.model.OverlayTint
+import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
 
     private lateinit var preferences: PreferencesRepository
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val settingsReady = CompletableDeferred<Unit>()
+    private var settings = PreferencesRepository.OverlaySettings()
+    private data class Command(val intent: Intent?, val startId: Int)
+    private val commands = Channel<Command>(Channel.UNLIMITED)
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var currentDimLevel: Int = PreferencesRepository.FALLBACK_DEFAULT
@@ -35,64 +46,97 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        createChannelsIfNeeded()
         preferences = PreferencesRepository(applicationContext)
+        activeInstance = this
+        serviceScope.launch {
+            try {
+                preferences.overlaySettings.collect { updated ->
+                    settings = updated
+                    settingsReady.complete(Unit)
+                    if (overlayView != null) {
+                        applyOverlayAppearance()
+                        refreshNotification()
+                    }
+                }
+            } catch (_: IOException) {
+                tearDown()
+            }
+        }
+        serviceScope.launch {
+            settingsReady.await()
+            for (command in commands) handleCommand(command.intent, command.startId)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action
+        if (action == ACTION_STOP || action == ACTION_EXIT_APP) {
+            // Shutdown must not wait for disk reads or allow queued startup to revive the overlay.
+            while (commands.tryReceive().isSuccess) { /* Discard earlier pending commands. */ }
+            handleCommand(intent, startId)
+            return START_NOT_STICKY
+        }
+        if (action == null) {
+            // Enter foreground before waiting for asynchronous preferences initialization.
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
+        commands.trySend(Command(intent, startId))
+        return START_STICKY
+    }
+
+    private fun handleCommand(intent: Intent?, startId: Int) {
         when (intent?.action) {
             ACTION_STOP -> {
-                tearDown()
-                return START_NOT_STICKY
+                tearDown(startId)
+                return
             }
             ACTION_EXIT_APP -> {
-                tearDown()
+                tearDown(startId)
                 MainActivityHolder.requestExitApp()
-                return START_NOT_STICKY
-            }
-            ACTION_REFRESH_NOTIFICATION, ACTION_REFRESH_APPEARANCE -> {
-                if (overlayView != null) {
-                    applyOverlayAppearance()
-                }
-                if (intent?.action == ACTION_REFRESH_NOTIFICATION) {
-                    refreshNotification()
-                }
-                return START_STICKY
+                return
             }
             ACTION_UPDATE -> {
-                val level = intent.getIntExtra(EXTRA_DIM_LEVEL, preferences.defaultDimLevelBlocking())
+                val level = intent.getIntExtra(EXTRA_DIM_LEVEL, settings.defaultDimLevel)
                 if (overlayView == null) {
-                    showOverlay(level)
-                    startForeground(NOTIFICATION_ID, buildNotification())
+                    // A delayed slider or notification command must not restart dimming.
+                    stopSelf(startId)
                 } else {
                     setDimLevel(level)
                 }
-                return START_STICKY
+                return
             }
             ACTION_ADJUST -> {
-                if (overlayView == null) return START_STICKY
+                if (overlayView == null) {
+                    stopSelf(startId)
+                    return
+                }
                 val delta = intent.getIntExtra(EXTRA_DELTA, 0)
                 flashPressedCell(intent.getIntExtra(EXTRA_PRESSED_CELL, View.NO_ID))
                 setDimLevel(currentDimLevel + delta)
-                return START_STICKY
+                return
             }
             else -> {
-                val level = intent?.getIntExtra(EXTRA_DIM_LEVEL, preferences.defaultDimLevelBlocking())
-                    ?: preferences.defaultDimLevelBlocking()
+                val level = intent?.getIntExtra(EXTRA_DIM_LEVEL, settings.defaultDimLevel)
+                    ?: settings.defaultDimLevel
                 ensureOverlay(level)
-                startForeground(NOTIFICATION_ID, buildNotification())
-                return START_STICKY
+                if (overlayView != null) startForeground(NOTIFICATION_ID, buildNotification())
+                return
             }
         }
     }
 
     override fun onDestroy() {
+        commands.close()
+        serviceScope.cancel()
         cancelHighlightAnimation()
-        if (overlayView != null) {
+        if (overlayView != null || OverlayStateStore.state.value.isRunning) {
             removeOverlay()
             notifyOverlayStopped()
         }
+        activeInstance = null
         super.onDestroy()
     }
 
@@ -101,17 +145,20 @@ class OverlayService : Service() {
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun tearDown() {
+    private fun tearDown(startId: Int? = null) {
+        cancelHighlightAnimation()
+        pressedCellId = null
+        highlightPhase = OverlayNotificationFactory.HighlightPhase.NONE
+        if (startId == null) serviceScope.cancel()
         removeOverlay()
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        if (startId == null) stopSelf() else stopSelf(startId)
         notifyOverlayStopped()
     }
 
     private fun notifyOverlayStopped() {
-        lastKnownDimLevel = null
+        OverlayStateStore.stopped()
         OverlayUiSync.notifyOverlayStateChanged(this)
-        MainActivityHolder.notifyOverlayStopped()
     }
 
     private fun ensureOverlay(dimLevel: Int) {
@@ -124,21 +171,23 @@ class OverlayService : Service() {
 
     private fun setDimLevel(dimLevel: Int) {
         currentDimLevel = dimLevel.coerceIn(PreferencesRepository.MIN_DIM, PreferencesRepository.MAX_DIM)
-        lastKnownDimLevel = currentDimLevel
+        OverlayStateStore.active(currentDimLevel)
         applyOverlayAppearance()
         refreshNotification()
-        MainActivityHolder.notifyDimLevelChanged(currentDimLevel)
     }
 
     private fun showOverlay(dimLevel: Int) {
         currentDimLevel = dimLevel.coerceIn(PreferencesRepository.MIN_DIM, PreferencesRepository.MAX_DIM)
 
-        val wm = getSystemService<WindowManager>() ?: return
+        val wm = getSystemService<WindowManager>() ?: run {
+            tearDown()
+            return
+        }
         windowManager = wm
 
         val view = View(this).apply {
-            setBackgroundColor(preferences.resolveOverlayTintArgbBlocking())
-            alpha = OverlayTint.alphaForDimLevel(currentDimLevel)
+            setBackgroundColor(settings.tintArgb)
+            alpha = if (previewSuspended) 0f else OverlayTint.alphaForDimLevel(currentDimLevel)
         }
 
         val params = WindowManager.LayoutParams(
@@ -155,17 +204,24 @@ class OverlayService : Service() {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
 
-        wm.addView(view, params)
+        try {
+            wm.addView(view, params)
+        } catch (_: SecurityException) {
+            tearDown()
+            return
+        } catch (_: WindowManager.BadTokenException) {
+            tearDown()
+            return
+        }
         overlayView = view
-        lastKnownDimLevel = currentDimLevel
-        MainActivityHolder.notifyOverlayStarted(currentDimLevel)
+        OverlayStateStore.active(currentDimLevel)
         OverlayUiSync.notifyOverlayStateChanged(this)
     }
 
     private fun applyOverlayAppearance() {
-        val argb = preferences.resolveOverlayTintArgbBlocking()
+        val argb = settings.tintArgb
         overlayView?.setBackgroundColor(argb)
-        overlayView?.alpha = OverlayTint.alphaForDimLevel(currentDimLevel)
+        overlayView?.alpha = if (previewSuspended) 0f else OverlayTint.alphaForDimLevel(currentDimLevel)
     }
 
     private fun removeOverlay() {
@@ -214,9 +270,8 @@ class OverlayService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        createChannelsIfNeeded()
-        val mode = preferences.notificationModeBlocking()
-        val defaultLevel = preferences.defaultDimLevelBlocking()
+        val mode = settings.notificationMode
+        val defaultLevel = settings.defaultDimLevel
         return OverlayNotificationFactory
             .build(
                 this,
@@ -255,8 +310,14 @@ class OverlayService : Service() {
     }
 
     companion object {
-        @Volatile
-        var lastKnownDimLevel: Int? = null
+        private var activeInstance: OverlayService? = null
+        private var previewSuspended = false
+
+        /** Called on the main thread by the activity-owned color preview. */
+        fun setColorPreviewVisible(visible: Boolean) {
+            previewSuspended = visible
+            activeInstance?.applyOverlayAppearance()
+        }
 
         const val CHANNEL_MINIMAL = "darken_overlay_minimal"
         const val CHANNEL_INTERACTIVE = "darken_overlay_interactive"
@@ -266,8 +327,6 @@ class OverlayService : Service() {
         const val ACTION_UPDATE = "cz.darken.app.overlay.UPDATE"
         const val ACTION_ADJUST = "cz.darken.app.overlay.ADJUST"
         const val ACTION_EXIT_APP = "cz.darken.app.overlay.EXIT_APP"
-        const val ACTION_REFRESH_NOTIFICATION = "cz.darken.app.overlay.REFRESH_NOTIFICATION"
-        const val ACTION_REFRESH_APPEARANCE = "cz.darken.app.overlay.REFRESH_APPEARANCE"
         const val EXTRA_DIM_LEVEL = "dim_level"
         const val EXTRA_DELTA = "delta"
         const val EXTRA_PRESSED_CELL = "pressed_cell"
@@ -275,9 +334,9 @@ class OverlayService : Service() {
         private const val HIGHLIGHT_PRESS_MS = 90L
         private const val HIGHLIGHT_FADE_MS = 120L
 
-        fun start(context: Context, dimLevel: Int) {
+        fun start(context: Context, dimLevel: Int?) {
             val intent = Intent(context, OverlayService::class.java).apply {
-                putExtra(EXTRA_DIM_LEVEL, dimLevel)
+                if (dimLevel != null) putExtra(EXTRA_DIM_LEVEL, dimLevel)
             }
             context.startForegroundService(intent)
         }
@@ -286,20 +345,6 @@ class OverlayService : Service() {
             val intent = Intent(context, OverlayService::class.java).apply {
                 action = ACTION_UPDATE
                 putExtra(EXTRA_DIM_LEVEL, dimLevel)
-            }
-            context.startService(intent)
-        }
-
-        fun refreshNotification(context: Context) {
-            val intent = Intent(context, OverlayService::class.java).apply {
-                action = ACTION_REFRESH_NOTIFICATION
-            }
-            context.startService(intent)
-        }
-
-        fun refreshAppearance(context: Context) {
-            val intent = Intent(context, OverlayService::class.java).apply {
-                action = ACTION_REFRESH_APPEARANCE
             }
             context.startService(intent)
         }

@@ -1,10 +1,8 @@
 package cz.darken.app.overlay
 
-import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import cz.darken.app.MainActivity
-import cz.darken.app.data.PreferencesRepository
 import cz.darken.app.util.PermissionIntents
 
 object OverlayLauncher {
@@ -15,26 +13,21 @@ object OverlayLauncher {
         NeedPermissions,
     }
 
-    fun isOverlayRunning(context: Context): Boolean {
-        val manager = context.getSystemService(ActivityManager::class.java) ?: return false
-        @Suppress("DEPRECATION")
-        return manager.getRunningServices(Int.MAX_VALUE).any { info ->
-            info.service.className == OverlayService::class.java.name
-        }
-    }
+    fun isOverlayRunning(): Boolean = OverlayStateStore.state.value.isRunning
 
-    /** True when overlay service is running and dimming is active (not mid-shutdown). */
-    fun isOverlayActive(context: Context): Boolean =
-        isOverlayRunning(context) && OverlayService.lastKnownDimLevel != null
+    fun isOverlayActive(): Boolean = OverlayStateStore.state.value.dimLevel != null
 
     fun canStart(context: Context): Boolean =
         PermissionIntents.canDrawOverlays(context)
 
     fun start(context: Context, dimLevel: Int? = null) {
-        val preferences = PreferencesRepository(context.applicationContext)
-        val level = (dimLevel ?: preferences.defaultDimLevelBlocking())
-            .coerceIn(PreferencesRepository.MIN_DIM, PreferencesRepository.MAX_DIM)
-        OverlayService.start(context, level)
+        OverlayStateStore.starting()
+        try {
+            OverlayService.start(context, dimLevel)
+        } catch (error: RuntimeException) {
+            OverlayStateStore.stopped()
+            throw error
+        }
     }
 
     fun stop(context: Context) {
@@ -42,7 +35,7 @@ object OverlayLauncher {
     }
 
     fun toggle(context: Context): ToggleResult {
-        if (isOverlayRunning(context)) {
+        if (isOverlayRunning()) {
             stop(context)
             return ToggleResult.Stopped
         }

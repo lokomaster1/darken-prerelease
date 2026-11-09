@@ -22,21 +22,4 @@ object MainActivityHolder {
         }
     }
 
-    fun notifyOverlayStopped() {
-        activityRef?.get()?.runOnUiThread {
-            activityRef?.get()?.onOverlayStoppedExternally()
-        }
-    }
-
-    fun notifyOverlayStarted(level: Int) {
-        activityRef?.get()?.runOnUiThread {
-            activityRef?.get()?.onOverlayStarted(level)
-        }
-    }
-
-    fun notifyDimLevelChanged(level: Int) {
-        activityRef?.get()?.runOnUiThread {
-            activityRef?.get()?.onOverlayDimLevelChanged(level)
-        }
-    }
 }

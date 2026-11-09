@@ -68,13 +68,10 @@
     <string name="permission_notification_title">通知</string>
     <string name="permission_battery_title">不受电池限制</string>
     <string name="permission_battery_body">否则系统可能停止屏幕滤镜服务。建议在省电管理较严格的手机上开启。</string>
-    <string name="permission_battery_button">关闭电池优化</string>
     <string name="notification_channel_minimal_name">屏幕滤镜服务（简洁）</string>
     <string name="notification_channel_minimal_description">尽量减少通知显示。</string>
     <string name="notification_channel_interactive_name">屏幕滤镜服务（交互）</string>
     <string name="notification_channel_interactive_description">从通知栏调整变暗强度。</string>
-    <string name="notification_channel_name">屏幕滤镜服务</string>
-    <string name="notification_channel_description">滤镜运行时显示简洁通知。</string>
     <string name="notification_title">Darken 已开启</string>
     <string name="notification_text">屏幕滤镜正在调暗显示</string>
     <string name="notification_text_level">变暗强度：%1$d %%</string>
@@ -115,4 +112,14 @@
     <string name="palette_forest">森林绿</string>
     <string name="palette_slate">岩灰色</string>
     <string name="custom_color_select_slot">选择位置 %1$d</string>
+    <string name="custom_color_preview_intensity">预览强度：%1$d %%</string>
+    <string name="settings_notification_warning_title">通知已关闭</string>
+    <string name="settings_notification_warning_body">交互式控件的通知已关闭，因此无法显示这些控件。</string>
+    <string name="settings_notification_open_settings">打开设置</string>
+    <string name="settings_notification_hide_warning">不再显示</string>
+    <string name="settings_widget">主屏幕小组件</string>
+    <string name="settings_widget_hint">将 Darken 小组件添加到主屏幕，无需打开应用即可开启或关闭调暗。</string>
+    <string name="settings_widget_hint_manual">如需添加 Darken 小组件，请长按主屏幕空白处，打开“小组件”，然后选择 Darken。</string>
+    <string name="settings_widget_button">添加小组件</string>
+    <string name="settings_open_failed">无法打开系统设置页面。</string>
 </resources>

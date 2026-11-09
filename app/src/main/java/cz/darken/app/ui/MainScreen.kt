@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -48,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import cz.darken.app.R
 import cz.darken.app.data.PreferencesRepository
 import cz.darken.app.ui.components.DarkenCard
@@ -104,63 +108,70 @@ fun MainScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .windowInsetsPadding(WindowInsets.navigationBars),
         ) {
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 16.dp, bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .fillMaxWidth(),
             ) {
-                HeaderCard(
-                    overlayActive = overlayActive,
-                    canDrawOverlays = canDrawOverlays,
-                    enabled = canDrawOverlays,
-                    onToggle = onToggleOverlay,
-                )
-
-                if (!canDrawOverlays) {
-                    DarkenCard {
-                        Text(
-                            text = stringResource(R.string.permission_overlay_missing),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = DarkenPalette.Gold,
+                AdaptiveHeaderColumn(
+                    viewportHeight = (maxHeight - 24.dp).coerceAtLeast(0.dp),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 16.dp, bottom = 8.dp),
+                    header = { height ->
+                        HeaderCard(
+                            height = height,
+                            overlayActive = overlayActive,
+                            canDrawOverlays = canDrawOverlays,
+                            enabled = canDrawOverlays,
+                            onToggle = onToggleOverlay,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(onClick = onOpenPermissions) {
+                    },
+                ) {
+                    if (!canDrawOverlays) {
+                        DarkenCard {
                             Text(
-                                text = stringResource(R.string.permission_overlay_button),
+                                text = stringResource(R.string.permission_overlay_missing),
+                                style = MaterialTheme.typography.bodySmall,
                                 color = DarkenPalette.Gold,
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(onClick = onOpenPermissions) {
+                                Text(
+                                    text = stringResource(R.string.permission_overlay_button),
+                                    color = DarkenPalette.Gold,
+                                )
+                            }
                         }
                     }
+
+                    ToggleCard(
+                        overlayActive = overlayActive,
+                        enabled = canDrawOverlays,
+                        onToggle = onToggleOverlay,
+                    )
+
+                    ControlCard(
+                        dimLevel = dimLevel,
+                        defaultDimLevel = defaultDimLevel,
+                        hasSavedDefault = hasSavedDefault,
+                        enabled = canDrawOverlays,
+                        onDimLevelChange = onDimLevelChange,
+                        onSaveDefault = onSaveDefault,
+                    )
+
+                    ColorFilterCard(
+                        expanded = colorFilterExpanded,
+                        onExpandedChange = onColorFilterExpandedChange,
+                        tintPreset = tintPreset,
+                        resolvedTintArgb = resolvedTintArgb,
+                        savedTintPresets = savedTintPresets,
+                        enabled = canDrawOverlays,
+                        onPresetSelected = onTintPresetSelected,
+                        onCustomClick = onCustomTintClick,
+                    )
                 }
-
-                ToggleCard(
-                    overlayActive = overlayActive,
-                    enabled = canDrawOverlays,
-                    onToggle = onToggleOverlay,
-                )
-
-                ControlCard(
-                    dimLevel = dimLevel,
-                    defaultDimLevel = defaultDimLevel,
-                    hasSavedDefault = hasSavedDefault,
-                    enabled = canDrawOverlays,
-                    onDimLevelChange = onDimLevelChange,
-                    onSaveDefault = onSaveDefault,
-                )
-
-                ColorFilterCard(
-                    expanded = colorFilterExpanded,
-                    onExpandedChange = onColorFilterExpandedChange,
-                    tintPreset = tintPreset,
-                    resolvedTintArgb = resolvedTintArgb,
-                    savedTintPresets = savedTintPresets,
-                    enabled = canDrawOverlays,
-                    onPresetSelected = onTintPresetSelected,
-                    onCustomClick = onCustomTintClick,
-                )
             }
 
             Column(
@@ -241,9 +252,42 @@ private val HeaderIconTitleGap = 12.dp
 
 /** Matches stacked layout before icon-beside-title: icon + 12 + title + 8 + status. */
 private val HeaderCardContentHeight = 124.dp
+private val HeaderCardMaxHeight = HeaderCardContentHeight + 40.dp
+private val HeaderCardMinHeight = 96.dp
+
+/** Measures the controls first so only the header gives up space before scrolling. */
+@Composable
+private fun AdaptiveHeaderColumn(
+    viewportHeight: Dp,
+    modifier: Modifier = Modifier,
+    header: @Composable (Dp) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    SubcomposeLayout(modifier = modifier) { constraints ->
+        val childConstraints = Constraints(
+            minWidth = constraints.maxWidth,
+            maxWidth = constraints.maxWidth,
+        )
+        val body = subcompose("controls") {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
+        }.single().measure(childConstraints)
+        val gap = 16.dp.roundToPx()
+        val headerHeight = (viewportHeight.roundToPx() - body.height - gap)
+            .coerceIn(HeaderCardMinHeight.roundToPx(), HeaderCardMaxHeight.roundToPx())
+        val headerPlaceable = subcompose("header") {
+            header(headerHeight.toDp())
+        }.single().measure(childConstraints)
+
+        layout(constraints.maxWidth, headerPlaceable.height + gap + body.height) {
+            headerPlaceable.placeRelative(0, 0)
+            body.placeRelative(0, headerPlaceable.height + gap)
+        }
+    }
+}
 
 @Composable
 private fun HeaderCard(
+    height: Dp,
     overlayActive: Boolean,
     canDrawOverlays: Boolean,
     enabled: Boolean,
@@ -255,11 +299,12 @@ private fun HeaderCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled) { onToggle(!overlayActive) },
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(HeaderCardContentHeight),
+                .heightIn(min = height - 20.dp),
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

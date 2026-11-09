@@ -76,14 +76,11 @@
 
     <string name="permission_battery_title">Bez omezení baterie</string>
     <string name="permission_battery_body">Systém může jinak službu stmavení ukončit. Doporučeno na telefonech s agresivní úsporou energie.</string>
-    <string name="permission_battery_button">Vyloučit z úspory baterie</string>
 
     <string name="notification_channel_minimal_name">Služba stmavení (minimální)</string>
     <string name="notification_channel_minimal_description">Nejméně viditelné oznámení.</string>
     <string name="notification_channel_interactive_name">Služba stmavení (interaktivní)</string>
     <string name="notification_channel_interactive_description">Ovládání stmavení z oznamovací roletky.</string>
-    <string name="notification_channel_name">Služba stmavení</string>
-    <string name="notification_channel_description">Minimální oznámení pro běh překryvné vrstvy na pozadí.</string>
     <string name="notification_title">Darken je aktivní</string>
     <string name="notification_text">Překrytí stmavuje displej</string>
     <string name="notification_text_level">Stmavení: %1$d %%</string>
@@ -125,4 +122,14 @@
     <string name="palette_forest">Lesní</string>
     <string name="palette_slate">Břidlice</string>
     <string name="custom_color_select_slot">Vybrat pozici %1$d</string>
+    <string name="custom_color_preview_intensity">Intenzita náhledu: %1$d %%</string>
+    <string name="settings_notification_warning_title">Oznámení jsou vypnutá</string>
+    <string name="settings_notification_warning_body">Interaktivní ovládání se nezobrazí, protože jsou jeho oznámení vypnutá.</string>
+    <string name="settings_notification_open_settings">Otevřít nastavení</string>
+    <string name="settings_notification_hide_warning">Příště nezobrazovat</string>
+    <string name="settings_widget">Widget na plochu</string>
+    <string name="settings_widget_hint">Přidejte widget Darken na domovskou obrazovku a zapínejte nebo vypínejte stmavení bez otevření aplikace.</string>
+    <string name="settings_widget_hint_manual">Pro přidání widgetu Darken podržte prst na volném místě domovské obrazovky, otevřete Widgety a vyberte Darken.</string>
+    <string name="settings_widget_button">Přidat widget</string>
+    <string name="settings_open_failed">Nepodařilo se otevřít systémové nastavení.</string>
 </resources>

@@ -1,7 +1,7 @@
 package cz.darken.app
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -13,45 +13,59 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import cz.darken.app.data.PreferencesRepository
 import cz.darken.app.locale.LocaleHelper
+import cz.darken.app.model.OverlayTint
+import cz.darken.app.overlay.ColorPreviewOverlay
 import cz.darken.app.overlay.OverlayLauncher
 import cz.darken.app.overlay.OverlayService
-import cz.darken.app.overlay.OverlayTint
+import cz.darken.app.overlay.OverlayStateStore
+import cz.darken.app.tile.QsTilePlacement
 import cz.darken.app.ui.CustomColorDialog
 import cz.darken.app.ui.DarkenTheme
 import cz.darken.app.ui.MainScreen
+import cz.darken.app.ui.MainViewModel
 import cz.darken.app.ui.PrivacyPolicyDialog
-import cz.darken.app.tile.QsTilePlacement
 import cz.darken.app.ui.QsTileAddedDialog
 import cz.darken.app.ui.SettingsDialog
 import cz.darken.app.ui.SystemPermissionsDialog
 import cz.darken.app.util.PermissionIntents
+import cz.darken.app.widget.WidgetPlacement
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var preferences: PreferencesRepository
+    private lateinit var colorPreview: ColorPreviewOverlay
 
-    private val dimLevelState = mutableIntStateOf(PreferencesRepository.FALLBACK_DEFAULT)
-    private var overlayActive = mutableStateOf(false)
+    private val viewModel by lazy { ViewModelProvider(this)[MainViewModel::class.java] }
+    private val dimLevelState get() = viewModel.dimLevel
     private var showPermissionsDialog = mutableStateOf(false)
     private var showSettingsDialog = mutableStateOf(false)
     private var showCustomColorDialog = mutableStateOf(false)
     private var showPrivacyPolicy = mutableStateOf(false)
     private var showQsTileAddedDialog = mutableStateOf(false)
     private var permissionRefreshKey = mutableIntStateOf(0)
-    private var overlayDisabledByUser = false
+    private var overlayDisabledByUser: Boolean
+        get() = viewModel.autoStartSuppressed
+        set(value) { viewModel.autoStartSuppressed = value }
+    private var previewInitialArgb = OverlayTint.GrayArgb
+    private var previewInitialIntensity = PreferencesRepository.DEFAULT_PREVIEW_DIM
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         preferences = PreferencesRepository(applicationContext)
+        colorPreview = ColorPreviewOverlay(this)
 
-        overlayDisabledByUser = savedInstanceState?.getBoolean(KEY_OVERLAY_DISABLED_BY_USER, false) ?: false
+        if (savedInstanceState?.getBoolean(KEY_OVERLAY_DISABLED_BY_USER, false) == true) {
+            overlayDisabledByUser = true
+        }
         showSettingsDialog.value = savedInstanceState?.getBoolean(KEY_SETTINGS_DIALOG, false) ?: false
 
         if (intent?.getBooleanExtra(EXTRA_OPEN_PERMISSIONS, false) == true) {
@@ -74,6 +88,9 @@ class MainActivity : AppCompatActivity() {
             val notificationMode by preferences.notificationMode.collectAsStateWithLifecycle(
                 initialValue = PreferencesRepository.NOTIF_MINIMAL,
             )
+            val notificationWarningHidden by preferences.notificationWarningHidden.collectAsStateWithLifecycle(
+                initialValue = true,
+            )
             val tintPreset by preferences.overlayTintPreset.collectAsStateWithLifecycle(
                 initialValue = OverlayTint.PRESET_GRAY,
             )
@@ -87,16 +104,16 @@ class MainActivity : AppCompatActivity() {
                 initialValue = false,
             )
             var dimLevel by dimLevelState
-            var snackbarMessage by mutableStateOf<String?>(null)
-            val overlayOn by overlayActive
+            var snackbarMessage by remember { mutableStateOf<String?>(null) }
+            val overlayState by OverlayStateStore.state.collectAsStateWithLifecycle()
+            val overlayOn = overlayState.isRunning
             val permissionsOpen by showPermissionsDialog
             val settingsOpen by showSettingsDialog
             val refreshKey by permissionRefreshKey
             val colorExpanded by preferences.colorFilterExpanded.collectAsStateWithLifecycle(
                 initialValue = false,
             )
-            var dialogRestorePreset by remember { mutableStateOf(OverlayTint.PRESET_GRAY) }
-            var dialogRestoreArgb by remember { mutableStateOf(OverlayTint.GrayArgb) }
+
 
             if (permissionsOpen) {
                 @Suppress("UNUSED_VARIABLE")
@@ -106,25 +123,16 @@ class MainActivity : AppCompatActivity() {
                     notificationsEnabled = NotificationManagerCompat.from(this).areNotificationsEnabled(),
                     batteryUnrestricted = batteryUnrestricted(),
                     onOverlayClick = {
-                        startActivity(
-                            PermissionIntents.overlaySettings(this)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
+                        openSystemSettings { PermissionIntents.openOverlaySettings(this) }
                     },
                     onNotificationsClick = {
-                        startActivity(PermissionIntents.notificationSettings(this))
+                        openSystemSettings { PermissionIntents.openNotificationSettings(this) }
                     },
                     onBatteryClick = {
-                        startActivity(
-                            PermissionIntents.batteryOptimizationSettings(this)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
+                        openSystemSettings { PermissionIntents.openBatteryOptimizationSettings(this) }
                     },
                     onAppDetailsClick = {
-                        startActivity(
-                            PermissionIntents.appDetailsSettings(this)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
+                        openSystemSettings { PermissionIntents.openAppDetailsSettings(this) }
                     },
                     onDismiss = { showPermissionsDialog.value = false },
                 )
@@ -132,36 +140,16 @@ class MainActivity : AppCompatActivity() {
 
             if (showCustomColorDialog.value) {
                 CustomColorDialog(
-                    initialArgb = dialogRestoreArgb,
+                    initialArgb = previewInitialArgb,
+                    initialIntensity = previewInitialIntensity,
                     savedTintPresets = savedTintPresets,
-                    onColorApply = { argb ->
-                        lifecycleScope.launch {
-                            preferences.setCustomOverlayTintArgb(argb)
-                            if (overlayOn) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
-                        }
-                    },
-                    onColorClear = { index ->
-                        val preset = index?.let { OverlayTint.presetSlots[it] } ?: dialogRestorePreset
-                        val customArgb = dialogRestoreArgb
-                        lifecycleScope.launch {
-                            preferences.setOverlayTint(preset, customArgb)
-                            if (overlayActive.value) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
-                        }
+                    onPreviewChange = { argb, intensity ->
+                        if (showCustomColorDialog.value) colorPreview.update(argb, intensity)
                     },
                     onSavePreset = { index, argb ->
+                        colorPreview.update(argb, 0)
                         lifecycleScope.launch {
-                            preferences.saveOverlayTintPreset(
-                                OverlayTint.presetSlots[index],
-                                argb,
-                                previousCustomArgb = dialogRestoreArgb,
-                            )
-                            if (overlayActive.value) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
+                            preferences.saveOverlayTintPreset(OverlayTint.presetSlots[index], argb)
                             Toast.makeText(
                                 this@MainActivity,
                                 getString(R.string.custom_color_slot_saved, index + 1),
@@ -169,21 +157,9 @@ class MainActivity : AppCompatActivity() {
                             ).show()
                         }
                     },
-                    onSelectPreset = { index ->
-                        lifecycleScope.launch {
-                            preferences.setOverlayTintPreset(OverlayTint.presetSlots[index])
-                            if (overlayActive.value) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
-                        }
-                    },
                     onResetPresets = {
                         lifecycleScope.launch {
                             preferences.resetOverlayTintPresets()
-                            if (overlayActive.value) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
-                            showCustomColorDialog.value = false
                             Toast.makeText(
                                 this@MainActivity,
                                 R.string.custom_color_slots_reset,
@@ -191,16 +167,11 @@ class MainActivity : AppCompatActivity() {
                             ).show()
                         }
                     },
-                    onConfirm = { showCustomColorDialog.value = false },
-                    onDismiss = {
-                        lifecycleScope.launch {
-                            preferences.setOverlayTint(dialogRestorePreset, dialogRestoreArgb)
-                            if (overlayOn) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
-                        }
-                        showCustomColorDialog.value = false
+                    onConfirm = { intensity ->
+                        closeColorPreview()
+                        lifecycleScope.launch { preferences.setColorPreviewIntensity(intensity) }
                     },
+                    onDismiss = { closeColorPreview() },
                 )
             }
 
@@ -226,17 +197,49 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (settingsOpen) {
+                val interactiveNotificationsEnabled = remember(refreshKey) {
+                    PermissionIntents.areInteractiveNotificationsEnabled(this@MainActivity)
+                }
+                val widgetPinningSupported = remember(refreshKey) {
+                    WidgetPlacement.isSupported(this@MainActivity)
+                }
                 SettingsDialog(
                     language = appLanguage,
                     autoStartOnLaunch = autoStartOnLaunch,
                     notificationMode = notificationMode,
+                    showNotificationWarning = !interactiveNotificationsEnabled && !notificationWarningHidden,
+                    onOpenNotificationSettings = {
+                        openSystemSettings { PermissionIntents.openInteractiveNotificationSettings(this@MainActivity) }
+                    },
+                    onHideNotificationWarning = {
+                        lifecycleScope.launch { preferences.hideNotificationWarning() }
+                    },
                     onLanguageChange = { applyLanguage(it) },
                     onAutoStartChange = { applyAutoStart(it) },
-                    onNotificationModeChange = { applyNotificationMode(it) },
+                    onNotificationModeChange = {
+                        permissionRefreshKey.intValue++
+                        applyNotificationMode(it)
+                    },
                     onDismiss = { showSettingsDialog.value = false },
                     onOpenPrivacy = { showPrivacyPolicy.value = true },
                     onOpenGithub = { openGithub() },
                     onOpenContact = { openContactEmail() },
+                    widgetPinningSupported = widgetPinningSupported,
+                    onAddWidget = {
+                        when (WidgetPlacement.requestAddWidget(this@MainActivity)) {
+                            WidgetPlacement.Result.Requested -> Unit
+                            WidgetPlacement.Result.Unsupported,
+                            WidgetPlacement.Result.Error,
+                            -> {
+                                permissionRefreshKey.intValue++
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    R.string.settings_widget_hint_manual,
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                        }
+                    },
                     onAddQsTile = {
                         QsTilePlacement.requestAddTile(this@MainActivity) { result ->
                             when (result) {
@@ -271,7 +274,6 @@ class MainActivity : AppCompatActivity() {
                         if (!enable) {
                             overlayDisabledByUser = true
                             OverlayLauncher.stop(this)
-                            overlayActive.value = false
                         } else {
                             overlayDisabledByUser = false
                             startOverlay(dimLevelState.intValue) { snackbarMessage = it }
@@ -296,15 +298,23 @@ class MainActivity : AppCompatActivity() {
                     onTintPresetSelected = { preset ->
                         lifecycleScope.launch {
                             preferences.setOverlayTintPreset(preset)
-                            if (overlayOn) {
-                                OverlayService.refreshAppearance(this@MainActivity)
-                            }
                         }
                     },
                     onCustomTintClick = {
-                        dialogRestorePreset = tintPreset
-                        dialogRestoreArgb = resolvedTintArgb
-                        showCustomColorDialog.value = true
+                        if (!canDrawOverlays()) {
+                            showPermissionsDialog.value = true
+                        } else {
+                            lifecycleScope.launch {
+                                val intensity = preferences.colorPreviewIntensity.first()
+                                if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                    previewInitialArgb = resolvedTintArgb
+                                    previewInitialIntensity = intensity
+                                    if (colorPreview.show(resolvedTintArgb, 0)) {
+                                        showCustomColorDialog.value = true
+                                    }
+                                }
+                            }
+                        }
                     },
                     snackbarMessage = snackbarMessage,
                     onSnackbarShown = { snackbarMessage = null },
@@ -324,6 +334,21 @@ class MainActivity : AppCompatActivity() {
         MainActivityHolder.register(this)
     }
 
+    private fun closeColorPreview() {
+        showCustomColorDialog.value = false
+        colorPreview.close()
+    }
+
+    override fun onPause() {
+        closeColorPreview()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        closeColorPreview()
+        super.onDestroy()
+    }
+
     override fun onStop() {
         MainActivityHolder.unregister(this)
         super.onStop()
@@ -331,8 +356,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val activeDimLevel = OverlayService.lastKnownDimLevel
-        overlayActive.value = activeDimLevel != null
+        val activeDimLevel = OverlayStateStore.state.value.dimLevel
         if (activeDimLevel != null) {
             dimLevelState.intValue = activeDimLevel
         }
@@ -346,23 +370,7 @@ class MainActivity : AppCompatActivity() {
 
     fun exitAppFully() {
         OverlayLauncher.stop(this)
-        overlayActive.value = false
         finishAndRemoveTask()
-    }
-
-    fun onOverlayStarted(level: Int) {
-        overlayDisabledByUser = false
-        dimLevelState.intValue = level
-        overlayActive.value = true
-    }
-
-    fun onOverlayStoppedExternally() {
-        overlayActive.value = false
-        overlayDisabledByUser = true
-    }
-
-    fun onOverlayDimLevelChanged(level: Int) {
-        dimLevelState.intValue = level
     }
 
     private fun applyLanguage(language: String) {
@@ -385,9 +393,6 @@ class MainActivity : AppCompatActivity() {
             val previousMode = preferences.notificationMode.first()
             if (previousMode == mode) return@launch
             preferences.setNotificationMode(mode)
-            if (overlayActive.value) {
-                OverlayService.refreshNotification(this@MainActivity)
-            }
         }
     }
 
@@ -395,9 +400,13 @@ class MainActivity : AppCompatActivity() {
         if (overlayDisabledByUser) return
         lifecycleScope.launch {
             if (!preferences.autoStartOnLaunchEnabled()) return@launch
+            if (overlayDisabledByUser || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@launch
             if (!OverlayLauncher.canStart(this@MainActivity)) return@launch
-            if (OverlayLauncher.isOverlayRunning(this@MainActivity)) return@launch
+            if (OverlayLauncher.isOverlayRunning()) return@launch
             val level = preferences.resolveDefaultDimLevel()
+            if (overlayDisabledByUser || OverlayLauncher.isOverlayRunning() ||
+                !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            ) return@launch
             dimLevelState.intValue = level
             startOverlay(level) { /* silent auto-start */ }
         }
@@ -415,18 +424,21 @@ class MainActivity : AppCompatActivity() {
             onMessage(getString(R.string.permission_battery_body))
         }
         OverlayLauncher.start(this, clamped)
-        overlayActive.value = true
+    }
+
+    private fun openSystemSettings(open: () -> Boolean) {
+        if (!open()) Toast.makeText(this, R.string.settings_open_failed, Toast.LENGTH_LONG).show()
     }
 
     private fun openGithub() {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.github_url)))
+        val intent = Intent(Intent.ACTION_VIEW, getString(R.string.github_url).toUri())
         startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     private fun openContactEmail() {
         val intent = Intent(
             Intent.ACTION_SENDTO,
-            Uri.parse("mailto:${getString(R.string.contact_email)}"),
+            "mailto:${getString(R.string.contact_email)}".toUri(),
         )
         startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }

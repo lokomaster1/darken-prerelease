@@ -77,14 +77,11 @@
 
     <string name="permission_battery_title">Unrestricted battery</string>
     <string name="permission_battery_body">Otherwise the system may stop the dimming service. Recommended on aggressive power-saving phones.</string>
-    <string name="permission_battery_button">Disable battery optimization</string>
 
     <string name="notification_channel_minimal_name">Dimming service (minimal)</string>
     <string name="notification_channel_minimal_description">Least visible notification.</string>
     <string name="notification_channel_interactive_name">Dimming service (interactive)</string>
     <string name="notification_channel_interactive_description">Control dimming from the notification shade.</string>
-    <string name="notification_channel_name">Dimming service</string>
-    <string name="notification_channel_description">Minimal notification while the overlay runs.</string>
     <string name="notification_title">Darken is active</string>
     <string name="notification_text">Overlay is dimming the display</string>
     <string name="notification_text_level">Dimming: %1$d %%</string>
@@ -129,4 +126,19 @@
     <string name="palette_forest">Forest</string>
     <string name="palette_slate">Slate</string>
     <string name="custom_color_select_slot">Select slot %1$d</string>
+    <string name="custom_color_preview_intensity">Preview intensity: %1$d %%</string>
+    <string name="settings_notification_warning_title">Notifications are turned off</string>
+    <string name="settings_notification_warning_body">Interactive controls cannot appear because their notifications are turned off.</string>
+    <string name="settings_notification_open_settings">Open settings</string>
+    <string name="settings_notification_hide_warning">Do not show again</string>
+    <string name="settings_widget">Home screen widget</string>
+    <string name="settings_widget_hint">Add the Darken widget to your home screen to turn dimming on or off without opening the app.</string>
+    <string name="settings_widget_hint_manual">To add the Darken widget, touch and hold an empty area of your home screen, open Widgets, and select Darken.</string>
+    <string name="settings_widget_button">Add widget</string>
+    <string name="settings_open_failed">The system settings screen could not be opened.</string>
+    <string name="notification_control_decrease_large" translatable="false">&lt;&lt;</string>
+    <string name="notification_control_decrease" translatable="false">&lt;</string>
+    <string name="notification_control_stop" translatable="false">X</string>
+    <string name="notification_control_increase" translatable="false">&gt;</string>
+    <string name="notification_control_increase_large" translatable="false">&gt;&gt;</string>
 </resources>

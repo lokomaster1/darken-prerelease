@@ -44,7 +44,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -66,58 +66,46 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import cz.darken.app.R
-import cz.darken.app.overlay.OverlayTint
+import cz.darken.app.data.PreferencesRepository
+import cz.darken.app.model.OverlayTint
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CustomColorDialog(
     initialArgb: Int,
+    initialIntensity: Int,
     savedTintPresets: Map<String, Int>,
-    onColorApply: (Int) -> Unit,
-    onColorClear: (Int?) -> Unit,
+    onPreviewChange: (Int, Int) -> Unit,
     onSavePreset: (Int, Int) -> Unit,
-    onSelectPreset: (Int) -> Unit,
     onResetPresets: () -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var hexDigits by remember(initialArgb) {
-        mutableStateOf(argbToHexDigits(initialArgb))
-    }
-    var selectedArgb by remember(initialArgb) { mutableStateOf(initialArgb) }
-    var showHueSlider by remember { mutableStateOf(false) }
-    var hueDegrees by remember(initialArgb) { mutableFloatStateOf(argbToHue(initialArgb)) }
-    var pendingSliderPersist by remember { mutableStateOf<Int?>(null) }
-    var colorEdited by remember { mutableStateOf(false) }
-    var selectionSaved by remember { mutableStateOf(false) }
-    var lastPresetIndex by remember { mutableStateOf<Int?>(null) }
+    val editor = remember(initialArgb, initialIntensity) { CustomColorEditorState(initialArgb, initialIntensity) }
     val scope = rememberCoroutineScope()
     val glowTransition = rememberInfiniteTransition(label = "presetGlow")
     val glowAlpha by glowTransition.animateFloat(
         initialValue = 0.12f,
         targetValue = 0.38f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200),
+            animation = tween(durationMillis = 800),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "presetGlowAlpha",
     )
     var hideKeyboardIfVisible by remember { mutableStateOf<(() -> Boolean)?>(null) }
 
-    fun parseSelection(): Int? =
-        if (hexDigits.length == 6) OverlayTint.parseHexColor("#$hexDigits") else null
+    val parsedArgb = editor.parseSelection()
+    val canSavePreset = editor.colorEdited && parsedArgb != null
+    val hexError = editor.hexDigits.isNotEmpty() && parsedArgb == null
 
-    val parsedArgb = parseSelection()
-    val canSavePreset = colorEdited && parsedArgb != null
-    val hexError = hexDigits.isNotEmpty() && parsedArgb == null
-
-    val previewBorderColor = parsedArgb?.let { OverlayTint.toComposeColor(it) } ?: DarkenPalette.Gold
+    val previewBorderColor = parsedArgb?.let { Color(it) } ?: DarkenPalette.Gold
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = DarkenPalette.TextPrimary,
@@ -133,34 +121,14 @@ fun CustomColorDialog(
         errorTextColor = DarkenPalette.TextPrimary,
     )
 
-    fun updateLocalColor(argb: Int, sliderHue: Float? = null) {
-        selectionSaved = false
-        selectedArgb = argb
-        hexDigits = argbToHexDigits(argb)
-        hueDegrees = sliderHue ?: argbToHue(argb).coerceIn(0f, SLIDER_HUE_MAX)
+    LaunchedEffect(editor.pendingSliderSelection) {
+        val argb = editor.pendingSliderSelection ?: return@LaunchedEffect
+        editor.pendingSliderSelection = null
+        editor.editColor(argb, sliderHue = editor.hueDegrees)
     }
 
-    fun persistColor(argb: Int, sliderHue: Float? = null) {
-        updateLocalColor(argb, sliderHue)
-        colorEdited = true
-        onColorApply(argb)
-    }
-
-    fun previewHue(hue: Float) {
-        val clamped = hue.coerceIn(0f, SLIDER_HUE_MAX)
-        updateLocalColor(overlayTintArgbFromHue(clamped), sliderHue = clamped)
-    }
-
-    fun scheduleSliderPersist() {
-        if (showHueSlider && !selectionSaved) {
-            pendingSliderPersist = selectedArgb
-        }
-    }
-
-    LaunchedEffect(pendingSliderPersist) {
-        val argb = pendingSliderPersist ?: return@LaunchedEffect
-        pendingSliderPersist = null
-        persistColor(argb, sliderHue = hueDegrees)
+    LaunchedEffect(editor.selectedArgb, editor.previewIntensity, editor.previewEnabled) {
+        onPreviewChange(editor.selectedArgb, if (editor.previewEnabled) editor.previewIntensity else 0)
     }
 
     BasicAlertDialog(
@@ -230,53 +198,65 @@ fun CustomColorDialog(
                             val label = stringResource(labelRes)
                             ColorSwatch(
                                 argb = argb,
-                                selected = !showHueSlider && argb == parsedArgb,
+                                selected = !editor.showHueSlider && argb == parsedArgb,
                                 onClick = {
-                                    val deselect = colorEdited && !showHueSlider && parseSelection() == argb
-                                    showHueSlider = false
-                                    pendingSliderPersist = null
+                                    val deselect = editor.colorEdited && !editor.showHueSlider && editor.parseSelection() == argb
+                                    editor.showHueSlider = false
+                                    editor.pendingSliderSelection = null
                                     if (deselect) {
-                                        hexDigits = ""
-                                        colorEdited = false
-                                        selectionSaved = lastPresetIndex != null
-                                        onColorClear(lastPresetIndex)
+                                        editor.hexDigits = ""
+                                        editor.colorEdited = false
+                                        editor.selectionSaved = false
+                                        editor.selectedArgb = initialArgb
+                                        editor.previewEnabled = false
                                     } else {
-                                        persistColor(argb)
+                                        editor.editColor(argb)
                                     }
                                 },
                                 modifier = Modifier.size(36.dp).semantics { contentDescription = label },
                             )
                         }
                         RainbowSwatch(
-                            selected = showHueSlider,
+                            modifier = Modifier.size(36.dp),
+                            selected = editor.showHueSlider,
                             onClick = {
-                                showHueSlider = true
-                                val hsv = argbToHsv(selectedArgb)
+                                editor.showHueSlider = true
+                                val hsv = argbToHsv(editor.selectedArgb)
                                 if (hsv[1] < 0.1f) {
-                                    persistColor(overlayTintArgbFromHue(hsv[0]))
+                                    editor.editColor(overlayTintArgbFromHue(hsv[0]))
+                                } else {
+                                    editor.editColor(editor.selectedArgb)
                                 }
                             },
                         )
                     }
-                    if (showHueSlider) {
+                    if (editor.showHueSlider) {
                         HueSlider(
-                            hue = hueDegrees,
-                            previewColor = OverlayTint.toComposeColor(selectedArgb),
-                            onHueChange = { previewHue(it) },
-                            onInteractionEnd = { scheduleSliderPersist() },
+                            hue = editor.hueDegrees,
+                            previewColor = Color(editor.selectedArgb),
+                            onHueChange = { editor.previewHue(it) },
+                            onInteractionEnd = { editor.scheduleSliderSelection() },
                         )
                     }
+                    ColorPreviewIntensitySlider(
+                        intensity = editor.previewIntensity,
+                        onIntensityChange = {
+                            editor.previewIntensity = it
+                            if (editor.parseSelection() != null) editor.previewEnabled = true
+                        },
+                    )
                     OutlinedTextField(
-                        value = hexDigits,
+                        value = editor.hexDigits,
                         onValueChange = { value ->
+                            if (!editor.acceptHexInput) return@OutlinedTextField
                             val normalized = normalizeHexDigits(value)
-                            if (normalized == hexDigits) return@OutlinedTextField
-                            selectionSaved = false
-                            colorEdited = true
-                            hexDigits = normalized
-                            val parsed = parseSelection()
+                            if (normalized == editor.hexDigits) return@OutlinedTextField
+                            editor.selectionSaved = false
+                            editor.colorEdited = true
+                            editor.hexDigits = normalized
+                            val parsed = editor.parseSelection()
                             if (parsed != null) {
-                                persistColor(parsed)
+                                editor.editColor(parsed)
                             }
                         },
                         label = {
@@ -299,7 +279,9 @@ fun CustomColorDialog(
                         },
                         singleLine = true,
                         isError = hexError,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged {
+                            if (it.isFocused) editor.acceptHexInput = true
+                        },
                         colors = textFieldColors,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Characters,
@@ -330,7 +312,7 @@ fun CustomColorDialog(
                             )
                             val presetArgb = savedTintPresets[preset]
                                 ?: OverlayTint.resolveArgb(preset, initialArgb)
-                            val indicatorColor = OverlayTint.toComposeColor(presetArgb)
+                            val indicatorColor = Color(presetArgb)
                             val highlight = remember { Animatable(0f) }
                             Box(
                                 modifier = Modifier
@@ -352,20 +334,25 @@ fun CustomColorDialog(
                                     .clip(CircleShape)
                                     .semantics { contentDescription = label }
                                     .clickable(role = Role.Button) {
-                                        val newArgb = parseSelection()
-                                        if (colorEdited && newArgb != null) {
-                                            hexDigits = ""
+                                        val newArgb = editor.parseSelection()
+                                        // Ignore late IME edits until the user focuses the hex field again.
+                                        editor.acceptHexInput = false
+                                        hideKeyboard()
+                                        if (editor.colorEdited && newArgb != null) {
+                                            editor.hexDigits = ""
+                                            editor.previewEnabled = false
+                                            editor.previewIntensity = editor.previewIntensity.coerceIn(
+                                                PreferencesRepository.MIN_DIM,
+                                                PreferencesRepository.MAX_SAVED_PREVIEW_DIM,
+                                            )
                                             onSavePreset(index, newArgb)
                                         } else {
-                                            updateLocalColor(presetArgb)
-                                            onSelectPreset(index)
+                                            editor.updateLocalColor(presetArgb)
+                                            editor.showHueSlider = false
                                         }
-                                        colorEdited = false
-                                        lastPresetIndex = index
-                                        pendingSliderPersist = null
-                                        showHueSlider = false
-                                        selectionSaved = true
-                                        hideKeyboard()
+                                        editor.colorEdited = false
+                                        editor.pendingSliderSelection = null
+                                        editor.selectionSaved = true
                                         scope.launch {
                                             highlight.snapTo(1f)
                                             highlight.animateTo(0f, tween(durationMillis = 200))
@@ -377,7 +364,7 @@ fun CustomColorDialog(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .drawBehind {
-                                            val ringWidth = 4.8.dp.toPx()
+                                            val ringWidth = 6.24.dp.toPx()
                                             val radius = size.minDimension / 2f
                                             drawCircle(
                                                 color = indicatorColor,
@@ -417,11 +404,11 @@ fun CustomColorDialog(
                     }
                     TextButton(
                         onClick = {
-                            val argb = parseSelection()
-                            if (argb != null && !selectionSaved) persistColor(argb)
-                            if (argb != null || selectionSaved) onConfirm()
+                            val argb = editor.parseSelection()
+                            if (argb != null && !editor.selectionSaved) editor.editColor(argb)
+                            onConfirm(editor.previewIntensity)
                         },
-                        enabled = parsedArgb != null || selectionSaved,
+                        enabled = editor.hexDigits.isEmpty() || parsedArgb != null,
                     ) {
                         Text(stringResource(R.string.settings_ok), color = DarkenPalette.Gold)
                     }
@@ -432,16 +419,34 @@ fun CustomColorDialog(
 }
 
 @Composable
+private fun ColorPreviewIntensitySlider(
+    intensity: Int,
+    onIntensityChange: (Int) -> Unit,
+) {
+    val label = stringResource(R.string.custom_color_preview_intensity, intensity)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall)
+        DimIntensitySlider(
+            value = intensity,
+            onValueChange = onIntensityChange,
+            enabled = true,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+            compact = true,
+        )
+    }
+}
+
+@Composable
 fun ColorSwatch(
     argb: Int,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.size(36.dp),
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(OverlayTint.toComposeColor(argb))
+            .background(Color(argb))
             .border(
                 width = if (selected) 3.dp else 1.dp,
                 color = if (selected) DarkenPalette.Gold else DarkenPalette.NavyTrack,
@@ -456,7 +461,7 @@ fun ColorSwatch(
 internal fun RainbowSwatch(
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.size(36.dp),
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
@@ -481,29 +486,4 @@ internal fun RainbowSwatch(
             )
             .clickable(onClick = onClick),
     )
-}
-
-private fun argbToHexDigits(argb: Int): String {
-    val rgb = argb and 0xFFFFFF
-    return String.format("%06X", rgb)
-}
-
-private fun argbToHue(argb: Int): Float = argbToHsv(argb)[0]
-
-private fun argbToHsv(argb: Int): FloatArray {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(argb, hsv)
-    return hsv
-}
-
-private fun hsvToArgb(hue: Float, saturation: Float, value: Float): Int =
-    android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
-
-/** Hex digits only (no #), uppercase, max 6 characters; extra input is ignored. */
-private fun normalizeHexDigits(raw: String): String {
-    return raw
-        .replace("#", "")
-        .filter { it.isDigit() || it in 'A'..'F' || it in 'a'..'f' }
-        .uppercase()
-        .take(6)
 }

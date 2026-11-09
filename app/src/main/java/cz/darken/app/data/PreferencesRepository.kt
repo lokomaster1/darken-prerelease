@@ -3,16 +3,17 @@ package cz.darken.app.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import cz.darken.app.overlay.OverlayTint
+import cz.darken.app.model.DimLevel
+import cz.darken.app.model.OverlayTint
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "darken_prefs")
 
@@ -34,7 +35,17 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun resolveDefaultDimLevel(): Int = defaultDimLevel.first()
 
-    fun defaultDimLevelBlocking(): Int = runBlocking { resolveDefaultDimLevel() }
+
+    val colorPreviewIntensity: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_COLOR_PREVIEW_INTENSITY]?.coerceIn(MIN_DIM, MAX_SAVED_PREVIEW_DIM)
+            ?: DEFAULT_PREVIEW_DIM
+    }
+
+    suspend fun setColorPreviewIntensity(level: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_COLOR_PREVIEW_INTENSITY] = level.coerceIn(MIN_DIM, MAX_SAVED_PREVIEW_DIM)
+        }
+    }
 
     val colorFilterExpanded: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_COLOR_FILTER_EXPANDED] ?: false
@@ -45,7 +56,7 @@ class PreferencesRepository(private val context: Context) {
     }
 
     val overlayTintPreset: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_OVERLAY_TINT_PRESET] ?: OverlayTint.PRESET_GRAY
+        prefs[KEY_OVERLAY_TINT_PRESET].takeIf { it in OverlayTint.presetSlots } ?: OverlayTint.PRESET_GRAY
     }
 
     val customOverlayTintArgb: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -60,12 +71,10 @@ class PreferencesRepository(private val context: Context) {
 
     val resolvedOverlayTintArgb: Flow<Int> = context.dataStore.data.map(::resolveOverlayTintArgb)
 
-    suspend fun saveOverlayTintPreset(preset: String, argb: Int, previousCustomArgb: Int) {
+    suspend fun saveOverlayTintPreset(preset: String, argb: Int) {
         val key = OVERLAY_TINT_SLOT_KEYS.getValue(preset)
         context.dataStore.edit { prefs ->
             prefs[key] = argb
-            prefs[KEY_CUSTOM_OVERLAY_TINT] = previousCustomArgb
-            prefs[KEY_OVERLAY_TINT_PRESET] = preset
         }
     }
 
@@ -73,13 +82,14 @@ class PreferencesRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             OVERLAY_TINT_SLOT_KEYS.values.forEach { prefs.remove(it) }
             prefs.remove(KEY_CUSTOM_OVERLAY_TINT)
+            prefs.remove(KEY_COLOR_PREVIEW_INTENSITY)
             prefs[KEY_OVERLAY_TINT_PRESET] = OverlayTint.PRESET_GRAY
         }
     }
 
     suspend fun setOverlayTintPreset(preset: String) {
         val normalized = when (preset) {
-            OverlayTint.PRESET_GRAPHITE, OverlayTint.PRESET_BURGUNDY, OverlayTint.PRESET_CUSTOM -> preset
+            OverlayTint.PRESET_GRAPHITE, OverlayTint.PRESET_BURGUNDY -> preset
             else -> OverlayTint.PRESET_GRAY
         }
         context.dataStore.edit { prefs ->
@@ -87,31 +97,23 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
-    suspend fun setCustomOverlayTintArgb(argb: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_CUSTOM_OVERLAY_TINT] = argb
-            prefs[KEY_OVERLAY_TINT_PRESET] = OverlayTint.PRESET_CUSTOM
-        }
-    }
+    data class OverlaySettings(
+        val defaultDimLevel: Int = FALLBACK_DEFAULT,
+        val tintArgb: Int = OverlayTint.GrayArgb,
+        val notificationMode: String = NOTIF_MINIMAL,
+    )
 
-    suspend fun setOverlayTint(preset: String, customArgb: Int? = null) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_OVERLAY_TINT_PRESET] = when (preset) {
-                OverlayTint.PRESET_GRAPHITE, OverlayTint.PRESET_BURGUNDY, OverlayTint.PRESET_CUSTOM -> preset
-                else -> OverlayTint.PRESET_GRAY
-            }
-            if (customArgb != null) {
-                prefs[KEY_CUSTOM_OVERLAY_TINT] = customArgb
-            }
-        }
-    }
-
-    fun resolveOverlayTintArgbBlocking(): Int = runBlocking {
-        resolveOverlayTintArgb(context.dataStore.data.first())
-    }
+    /** One consistent snapshot for the service, emitted only when relevant settings change. */
+    val overlaySettings: Flow<OverlaySettings> = context.dataStore.data.map { prefs ->
+        OverlaySettings(
+            defaultDimLevel = prefs[KEY_DEFAULT_DIM]?.coerceIn(MIN_DIM, MAX_DIM) ?: FALLBACK_DEFAULT,
+            tintArgb = resolveOverlayTintArgb(prefs),
+            notificationMode = prefs[KEY_NOTIFICATION_MODE] ?: NOTIF_MINIMAL,
+        )
+    }.distinctUntilChanged()
 
     private fun resolveOverlayTintArgb(prefs: Preferences): Int {
-        val preset = prefs[KEY_OVERLAY_TINT_PRESET] ?: OverlayTint.PRESET_GRAY
+        val preset = prefs[KEY_OVERLAY_TINT_PRESET].takeIf { it in OverlayTint.presetSlots } ?: OverlayTint.PRESET_GRAY
         val savedArgb = OVERLAY_TINT_SLOT_KEYS[preset]?.let { prefs[it] }
         return savedArgb ?: OverlayTint.resolveArgb(
             preset,
@@ -147,8 +149,13 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
-    fun notificationModeBlocking(): String = runBlocking {
-        notificationMode.first()
+
+    val notificationWarningHidden: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_NOTIFICATION_WARNING_HIDDEN] ?: false
+    }
+
+    suspend fun hideNotificationWarning() {
+        context.dataStore.edit { prefs -> prefs[KEY_NOTIFICATION_WARNING_HIDDEN] = true }
     }
 
     val autoStartOnLaunch: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -174,9 +181,11 @@ class PreferencesRepository(private val context: Context) {
     }
 
     companion object {
-        const val MIN_DIM = 0
-        const val MAX_DIM = 99
-        const val FALLBACK_DEFAULT = 50
+        const val MIN_DIM = DimLevel.MIN
+        const val MAX_DIM = DimLevel.MAX
+        const val FALLBACK_DEFAULT = DimLevel.DEFAULT
+        const val DEFAULT_PREVIEW_DIM = 20
+        const val MAX_SAVED_PREVIEW_DIM = 50
 
         const val LANG_SYSTEM = "system"
         const val LANG_CS = "cs"
@@ -186,9 +195,11 @@ class PreferencesRepository(private val context: Context) {
         const val NOTIF_MINIMAL = "minimal"
         const val NOTIF_INTERACTIVE = "interactive"
 
+        private val KEY_COLOR_PREVIEW_INTENSITY = intPreferencesKey("color_preview_intensity")
         private val KEY_DEFAULT_DIM = intPreferencesKey("default_dim_level")
         private val KEY_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_NOTIFICATION_MODE = stringPreferencesKey("notification_mode")
+        private val KEY_NOTIFICATION_WARNING_HIDDEN = booleanPreferencesKey("notification_warning_hidden")
         private val KEY_AUTO_START = booleanPreferencesKey("auto_start_on_launch")
         private val KEY_COLOR_FILTER_EXPANDED = booleanPreferencesKey("color_filter_expanded")
         private val KEY_OVERLAY_TINT_PRESET = stringPreferencesKey("overlay_tint_preset")
