@@ -28,7 +28,6 @@ import cz.darken.app.tile.QsTilePlacement
 import cz.darken.app.ui.CustomColorDialog
 import cz.darken.app.ui.DarkenTheme
 import cz.darken.app.ui.MainScreen
-import cz.darken.app.ui.rememberHighDimmingChange
 import cz.darken.app.ui.MainViewModel
 import cz.darken.app.ui.PrivacyPolicyDialog
 import cz.darken.app.ui.QsTileAddedDialog
@@ -299,7 +298,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             DarkenTheme {
-                val changeDimLevel = rememberHighDimmingChange(dimLevel) { newLevel ->
+                val changeDimLevel: (Int) -> Unit = { newLevel ->
                     dimLevelState.intValue = newLevel
                     if (overlayOn) OverlayService.update(this, newLevel)
                 }

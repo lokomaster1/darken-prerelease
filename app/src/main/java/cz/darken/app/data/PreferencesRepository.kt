@@ -37,15 +37,6 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun resolveDefaultDimLevel(): Int = defaultDimLevel.first()
 
-    val highDimmingWarningHidden: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[KEY_HIGH_DIMMING_WARNING_HIDDEN] ?: false
-    }
-
-    suspend fun setHighDimmingWarningHidden(hidden: Boolean) {
-        context.dataStore.edit { it[KEY_HIGH_DIMMING_WARNING_HIDDEN] = hidden }
-    }
-
-
     val colorPreviewIntensity: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[KEY_COLOR_PREVIEW_INTENSITY]?.coerceIn(MIN_DIM, MAX_SAVED_PREVIEW_DIM)
             ?: DEFAULT_PREVIEW_DIM
@@ -251,7 +242,6 @@ class PreferencesRepository(private val context: Context) {
 
         private val KEY_COLOR_PREVIEW_INTENSITY = intPreferencesKey("color_preview_intensity")
         private val KEY_DEFAULT_DIM = intPreferencesKey("default_dim_level")
-        private val KEY_HIGH_DIMMING_WARNING_HIDDEN = booleanPreferencesKey("high_dimming_warning_hidden")
         private val KEY_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_NOTIFICATION_MODE = stringPreferencesKey("notification_mode")
         private val KEY_NOTIFICATION_WARNING_HIDDEN = booleanPreferencesKey("notification_warning_hidden")

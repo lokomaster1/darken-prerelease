@@ -12,8 +12,8 @@ android {
         applicationId = "cz.darken.app"
         minSdk = 31
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.3.4"
+        versionCode = 20
+        versionName = "1.3.5"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -21,6 +21,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".compare"
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(

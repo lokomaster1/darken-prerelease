@@ -1,0 +1,5 @@
+Added scheduled dimming startup and shutdown with optional daily repetition.
+Added compact expandable timer settings and direct time entry.
+Made the full 0–99 intensity scale cover the available dimming range.
+Removed the experimental high-dimming warning and slider detent.
+Debug builds now install separately as Darken Compare.

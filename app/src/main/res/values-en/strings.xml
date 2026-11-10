@@ -157,10 +157,6 @@
     <string name="timer_start_next_today">Next startup today at %1$s</string>
     <string name="timer_start_next_tomorrow">Next startup tomorrow at %1$s</string>
     <string name="timer_start_next_date">Next startup on %1$s at %2$s</string>
-    <string name="high_dimming_title">Warning - High dimming</string>
-<string name="high_dimming_message" formatted="false">Above 80% dimming, Android may block touches in other apps for security reasons, including some keyboard buttons. For everyday use of your device, keeping dimming below 80% is recommended. Some apps with strict security requirements may stop working even at lower overlay levels.</string>
-<string name="high_dimming_hide">Confirm and do not show again</string>
-    <string name="high_dimming_continue">Understood</string>
     <string name="timer_stop_section">Automatic shutdown</string>
     <string name="timer_start_section">Automatic startup</string>
     <string name="timer_settings_expand">Expand settings</string>

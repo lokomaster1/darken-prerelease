@@ -39,11 +39,7 @@ object OverlayTint {
         }
     }
 
-    fun alphaForDimLevel(dimLevel: Int): Float {
-        val level = DimLevel.clamp(dimLevel)
-        // Align the warning boundary with 0.8 window opacity while preserving full dimming at 99.
-        return if (level <= DimLevel.WARNING_THRESHOLD) level / 100f
-        else 0.8f + (level - DimLevel.WARNING_THRESHOLD) * 0.2f /
-            (DimLevel.MAX - DimLevel.WARNING_THRESHOLD)
-    }
+    /** Relative user scale: 0–99 maps uniformly to window opacity 0–0.8. */
+    fun alphaForDimLevel(dimLevel: Int): Float =
+        DimLevel.clamp(dimLevel) / DimLevel.MAX.toFloat() * 0.8f
 }

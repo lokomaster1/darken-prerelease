@@ -157,10 +157,6 @@
     <string name="timer_start_next_today">Další zapnutí dnes v %1$s</string>
     <string name="timer_start_next_tomorrow">Další zapnutí zítra v %1$s</string>
     <string name="timer_start_next_date">Další zapnutí %1$s v %2$s</string>
-    <string name="high_dimming_title">Upozornění - Silné ztmavení</string>
-<string name="high_dimming_message" formatted="false">Při ztmavení nad 80 % může Android blokovat z bezpečnostních důvodů dotyky v jiných aplikacích, včetně tlačítek některých klávesnic. Na běznou činnost na zařízení je doporučeno ztmavení ponechat pod 80%. Některé aplikace s vysokými bezpečnostními požadavky mohou přestat fungovat i při nižší nastavené úrovni překrytí</string>
-<string name="high_dimming_hide">Potvrdit a nezobrazovat</string>
-    <string name="high_dimming_continue">Rozumím</string>
     <string name="timer_stop_section">Automatické vypínání</string>
     <string name="timer_start_section">Automatické zapínání</string>
     <string name="timer_settings_expand">Rozbalit nastavení</string>

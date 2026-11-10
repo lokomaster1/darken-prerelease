@@ -204,7 +204,7 @@ class OverlayService : Service() {
         ).apply {
             alpha = OverlayOpacity.alpha(
                 currentDimLevel,
-                suspended = previewSuspended || warningSuspended,
+                suspended = previewSuspended,
             )
             gravity = Gravity.TOP or Gravity.START
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
@@ -229,7 +229,7 @@ class OverlayService : Service() {
         val view = overlayView ?: return
         view.setBackgroundColor(argb)
         val params = view.layoutParams as WindowManager.LayoutParams
-        val alpha = OverlayOpacity.alpha(currentDimLevel, suspended = previewSuspended || warningSuspended)
+        val alpha = OverlayOpacity.alpha(currentDimLevel, suspended = previewSuspended)
         if (params.alpha != alpha) {
             params.alpha = alpha
             windowManager?.updateViewLayout(view, params)
@@ -324,14 +324,6 @@ class OverlayService : Service() {
     companion object {
         private var activeInstance: OverlayService? = null
         private var previewSuspended = false
-        private var warningSuspended = false
-
-        /** Visibility only: never starts/stops a service or changes its selected dimming level. */
-        fun setHighDimmingWarningVisible(visible: Boolean) {
-            warningSuspended = visible
-            activeInstance?.applyOverlayAppearance()
-        }
-
         /** Called on the main thread by the activity-owned color preview. */
         fun setColorPreviewVisible(visible: Boolean) {
             previewSuspended = visible

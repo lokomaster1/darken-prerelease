@@ -432,7 +432,6 @@ private fun ColorPreviewIntensitySlider(
             enabled = true,
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
             compact = true,
-            showHighDimmingRange = false,
         )
     }
 }

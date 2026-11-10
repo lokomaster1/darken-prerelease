@@ -53,7 +53,7 @@ class OverlayRegressionTest {
 
     @Test fun dimmingBoundariesKeepExistingMapping() {
         assertEquals(0f, OverlayTint.alphaForDimLevel(-10), 0f)
-        assertEquals(1f, OverlayTint.alphaForDimLevel(99), 0f)
-        assertEquals(1f, OverlayTint.alphaForDimLevel(110), 0f)
+        assertEquals(0.8f, OverlayTint.alphaForDimLevel(99), 0f)
+        assertEquals(0.8f, OverlayTint.alphaForDimLevel(110), 0f)
     }
 }

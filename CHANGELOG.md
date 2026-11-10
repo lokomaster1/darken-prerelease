@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.5
+
+- Added optional scheduled overlay startup and shutdown, with individual clock times and opt-in daily repetition.
+- Added compact, independently expandable timer settings with upcoming-action status and direct numeric time entry.
+- Aligned the full 0–99 intensity scale with the available overlay opacity range while retaining window-opacity rendering for touch compatibility.
+- Removed the experimental high-dimming warning, slider color changes, and intensity detent.
+- Made debug builds install alongside the release app as Darken Compare, with separate app data and permissions.
+
 ## 1.3.4
 
 - Refined the main screen layout for compact displays and temporarily kept portrait orientation.

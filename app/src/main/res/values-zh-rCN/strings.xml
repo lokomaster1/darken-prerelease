@@ -147,10 +147,6 @@
     <string name="timer_start_next_today">下次开启：今天 %1$s</string>
     <string name="timer_start_next_tomorrow">下次开启：明天 %1$s</string>
     <string name="timer_start_next_date">下次开启：%1$s %2$s</string>
-    <string name="high_dimming_title">警告 - 高强度调暗</string>
-<string name="high_dimming_message" formatted="false">调暗程度超过 80% 时，Android 可能会出于安全原因阻止其他应用中的触摸操作，包括某些键盘按键。日常使用设备时，建议将调暗程度保持在 80% 以下。某些安全要求较高的应用即使在较低的悬浮层调暗程度下也可能无法正常工作。</string>
-<string name="high_dimming_hide">确认并不再显示</string>
-    <string name="high_dimming_continue">明白了</string>
     <string name="timer_stop_section">自动关闭设置</string>
     <string name="timer_start_section">自动开启设置</string>
     <string name="timer_settings_expand">展开设置</string>
