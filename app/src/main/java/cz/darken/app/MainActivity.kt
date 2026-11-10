@@ -28,9 +28,13 @@ import cz.darken.app.tile.QsTilePlacement
 import cz.darken.app.ui.CustomColorDialog
 import cz.darken.app.ui.DarkenTheme
 import cz.darken.app.ui.MainScreen
+import cz.darken.app.ui.rememberHighDimmingChange
 import cz.darken.app.ui.MainViewModel
 import cz.darken.app.ui.PrivacyPolicyDialog
 import cz.darken.app.ui.QsTileAddedDialog
+import cz.darken.app.timer.OverlayTimerScheduler
+import cz.darken.app.timer.OverlayTimer
+import cz.darken.app.ui.TimerDialog
 import cz.darken.app.ui.SettingsDialog
 import cz.darken.app.ui.SystemPermissionsDialog
 import cz.darken.app.util.PermissionIntents
@@ -46,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private val viewModel by lazy { ViewModelProvider(this)[MainViewModel::class.java] }
     private val dimLevelState get() = viewModel.dimLevel
     private var showPermissionsDialog = mutableStateOf(false)
+    private var showTimerDialog = mutableStateOf(false)
     private var showSettingsDialog = mutableStateOf(false)
     private var showCustomColorDialog = mutableStateOf(false)
     private var showPrivacyPolicy = mutableStateOf(false)
@@ -66,6 +71,7 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState?.getBoolean(KEY_OVERLAY_DISABLED_BY_USER, false) == true) {
             overlayDisabledByUser = true
         }
+        showTimerDialog.value = savedInstanceState?.getBoolean(KEY_TIMER_DIALOG, false) ?: false
         showSettingsDialog.value = savedInstanceState?.getBoolean(KEY_SETTINGS_DIALOG, false) ?: false
 
         if (intent?.getBooleanExtra(EXTRA_OPEN_PERMISSIONS, false) == true) {
@@ -114,6 +120,42 @@ class MainActivity : AppCompatActivity() {
                 initialValue = false,
             )
 
+
+            val shutdownTimer by preferences.shutdownTimer.collectAsStateWithLifecycle(initialValue = OverlayTimer())
+            val startupTimer by preferences.startupTimer.collectAsStateWithLifecycle(initialValue = OverlayTimer(hour = 20))
+            if (showTimerDialog.value) {
+                DarkenTheme {
+                    val exactAlarmGranted = remember(refreshKey) { OverlayTimerScheduler.canSchedule(this@MainActivity) }
+                    TimerDialog(
+                        timer = shutdownTimer,
+                        startupTimer = startupTimer,
+                        overlayGranted = canDrawOverlays(),
+                        exactAlarmGranted = exactAlarmGranted,
+                        onEnabledChange = { action, enabled ->
+                            lifecycleScope.launch {
+                                OverlayTimerScheduler.update(applicationContext, action) { it.copy(enabled = enabled) }
+                            }
+                        },
+                        onTimeChange = { action, hour, minute ->
+                            lifecycleScope.launch {
+                                OverlayTimerScheduler.update(applicationContext, action) { it.copy(hour = hour, minute = minute) }
+                            }
+                        },
+                        onRepeatChange = { action, repeat ->
+                            lifecycleScope.launch {
+                                OverlayTimerScheduler.update(applicationContext, action) { it.copy(repeatDaily = repeat) }
+                            }
+                        },
+                        onRequestPermission = {
+                            openSystemSettings { PermissionIntents.openExactAlarmSettings(this@MainActivity) }
+                        },
+                        onRequestOverlayPermission = {
+                            openSystemSettings { PermissionIntents.openOverlaySettings(this@MainActivity) }
+                        },
+                        onDismiss = { showTimerDialog.value = false },
+                    )
+                }
+            }
 
             if (permissionsOpen) {
                 @Suppress("UNUSED_VARIABLE")
@@ -257,6 +299,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             DarkenTheme {
+                val changeDimLevel = rememberHighDimmingChange(dimLevel) { newLevel ->
+                    dimLevelState.intValue = newLevel
+                    if (overlayOn) OverlayService.update(this, newLevel)
+                }
                 MainScreen(
                     dimLevel = dimLevel,
                     defaultDimLevel = defaultDim,
@@ -264,12 +310,7 @@ class MainActivity : AppCompatActivity() {
                     overlayActive = overlayOn,
                     canDrawOverlays = canDrawOverlays(),
                     batteryUnrestricted = batteryUnrestricted(),
-                    onDimLevelChange = { newLevel ->
-                        dimLevelState.intValue = newLevel
-                        if (overlayOn) {
-                            OverlayService.update(this, newLevel)
-                        }
-                    },
+                    onDimLevelChange = changeDimLevel,
                     onToggleOverlay = { enable ->
                         if (!enable) {
                             overlayDisabledByUser = true
@@ -287,6 +328,7 @@ class MainActivity : AppCompatActivity() {
                     },
                     onOpenPermissions = { showPermissionsDialog.value = true },
                     onOpenSettings = { showSettingsDialog.value = true },
+                    onOpenTimer = { showTimerDialog.value = true },
                     onExitApp = { exitAppFully() },
                     colorFilterExpanded = colorExpanded,
                     onColorFilterExpandedChange = { expanded ->
@@ -326,6 +368,7 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_OVERLAY_DISABLED_BY_USER, overlayDisabledByUser)
+        outState.putBoolean(KEY_TIMER_DIALOG, showTimerDialog.value)
         outState.putBoolean(KEY_SETTINGS_DIALOG, showSettingsDialog.value)
     }
 
@@ -365,7 +408,10 @@ class MainActivity : AppCompatActivity() {
             showPermissionsDialog.value = true
             intent?.removeExtra(EXTRA_OPEN_PERMISSIONS)
         }
-        maybeAutoStartOverlay()
+        lifecycleScope.launch {
+            if (OverlayTimerScheduler.reconcile(applicationContext)) overlayDisabledByUser = true
+            maybeAutoStartOverlay()
+        }
     }
 
     fun exitAppFully() {
@@ -452,6 +498,7 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_OPEN_PERMISSIONS = "cz.darken.app.extra.OPEN_PERMISSIONS"
 
         private const val KEY_OVERLAY_DISABLED_BY_USER = "overlay_disabled_by_user"
+        private const val KEY_TIMER_DIALOG = "timer_dialog"
         private const val KEY_SETTINGS_DIALOG = "settings_dialog"
     }
 }

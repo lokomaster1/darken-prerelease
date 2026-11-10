@@ -5,9 +5,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import cz.darken.app.timer.OverlayTimer
 import cz.darken.app.model.DimLevel
 import cz.darken.app.model.OverlayTint
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +36,14 @@ class PreferencesRepository(private val context: Context) {
     }
 
     suspend fun resolveDefaultDimLevel(): Int = defaultDimLevel.first()
+
+    val highDimmingWarningHidden: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_HIGH_DIMMING_WARNING_HIDDEN] ?: false
+    }
+
+    suspend fun setHighDimmingWarningHidden(hidden: Boolean) {
+        context.dataStore.edit { it[KEY_HIGH_DIMMING_WARNING_HIDDEN] = hidden }
+    }
 
 
     val colorPreviewIntensity: Flow<Int> = context.dataStore.data.map { prefs ->
@@ -180,6 +190,50 @@ class PreferencesRepository(private val context: Context) {
         }
     }
 
+    val shutdownTimer: Flow<OverlayTimer> = context.dataStore.data.map { prefs ->
+        OverlayTimer(
+            enabled = prefs[KEY_TIMER_ENABLED] ?: false,
+            hour = (prefs[KEY_TIMER_HOUR] ?: 7).coerceIn(0, 23),
+            minute = (prefs[KEY_TIMER_MINUTE] ?: 0).coerceIn(0, 59),
+            repeatDaily = prefs[KEY_TIMER_REPEAT] ?: false,
+            nextTriggerAt = prefs[KEY_TIMER_NEXT] ?: 0,
+            lastFiredDate = prefs[KEY_TIMER_LAST_DATE] ?: "",
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setShutdownTimer(timer: OverlayTimer) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TIMER_ENABLED] = timer.enabled
+            prefs[KEY_TIMER_HOUR] = timer.hour
+            prefs[KEY_TIMER_MINUTE] = timer.minute
+            prefs[KEY_TIMER_REPEAT] = timer.repeatDaily
+            prefs[KEY_TIMER_NEXT] = timer.nextTriggerAt
+            prefs[KEY_TIMER_LAST_DATE] = timer.lastFiredDate
+        }
+    }
+
+    val startupTimer: Flow<OverlayTimer> = context.dataStore.data.map { prefs ->
+        OverlayTimer(
+            enabled = prefs[KEY_STARTUP_TIMER_ENABLED] ?: false,
+            hour = (prefs[KEY_STARTUP_TIMER_HOUR] ?: 20).coerceIn(0, 23),
+            minute = (prefs[KEY_STARTUP_TIMER_MINUTE] ?: 0).coerceIn(0, 59),
+            repeatDaily = prefs[KEY_STARTUP_TIMER_REPEAT] ?: false,
+            nextTriggerAt = prefs[KEY_STARTUP_TIMER_NEXT] ?: 0,
+            lastFiredDate = prefs[KEY_STARTUP_TIMER_LAST_DATE] ?: "",
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setStartupTimer(timer: OverlayTimer) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_STARTUP_TIMER_ENABLED] = timer.enabled
+            prefs[KEY_STARTUP_TIMER_HOUR] = timer.hour
+            prefs[KEY_STARTUP_TIMER_MINUTE] = timer.minute
+            prefs[KEY_STARTUP_TIMER_REPEAT] = timer.repeatDaily
+            prefs[KEY_STARTUP_TIMER_NEXT] = timer.nextTriggerAt
+            prefs[KEY_STARTUP_TIMER_LAST_DATE] = timer.lastFiredDate
+        }
+    }
+
     companion object {
         const val MIN_DIM = DimLevel.MIN
         const val MAX_DIM = DimLevel.MAX
@@ -197,9 +251,22 @@ class PreferencesRepository(private val context: Context) {
 
         private val KEY_COLOR_PREVIEW_INTENSITY = intPreferencesKey("color_preview_intensity")
         private val KEY_DEFAULT_DIM = intPreferencesKey("default_dim_level")
+        private val KEY_HIGH_DIMMING_WARNING_HIDDEN = booleanPreferencesKey("high_dimming_warning_hidden")
         private val KEY_LANGUAGE = stringPreferencesKey("app_language")
         private val KEY_NOTIFICATION_MODE = stringPreferencesKey("notification_mode")
         private val KEY_NOTIFICATION_WARNING_HIDDEN = booleanPreferencesKey("notification_warning_hidden")
+        private val KEY_TIMER_ENABLED = booleanPreferencesKey("shutdown_timer_enabled")
+        private val KEY_TIMER_HOUR = intPreferencesKey("shutdown_timer_hour")
+        private val KEY_TIMER_MINUTE = intPreferencesKey("shutdown_timer_minute")
+        private val KEY_TIMER_REPEAT = booleanPreferencesKey("shutdown_timer_repeat")
+        private val KEY_TIMER_NEXT = longPreferencesKey("shutdown_timer_next")
+        private val KEY_TIMER_LAST_DATE = stringPreferencesKey("shutdown_timer_last_date")
+        private val KEY_STARTUP_TIMER_ENABLED = booleanPreferencesKey("startup_timer_enabled")
+        private val KEY_STARTUP_TIMER_HOUR = intPreferencesKey("startup_timer_hour")
+        private val KEY_STARTUP_TIMER_MINUTE = intPreferencesKey("startup_timer_minute")
+        private val KEY_STARTUP_TIMER_REPEAT = booleanPreferencesKey("startup_timer_repeat")
+        private val KEY_STARTUP_TIMER_NEXT = longPreferencesKey("startup_timer_next")
+        private val KEY_STARTUP_TIMER_LAST_DATE = stringPreferencesKey("startup_timer_last_date")
         private val KEY_AUTO_START = booleanPreferencesKey("auto_start_on_launch")
         private val KEY_COLOR_FILTER_EXPANDED = booleanPreferencesKey("color_filter_expanded")
         private val KEY_OVERLAY_TINT_PRESET = stringPreferencesKey("overlay_tint_preset")

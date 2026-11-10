@@ -20,6 +20,10 @@ Tags `v1.0`, `v1.0.1`, `v1.0.2`, `v1.1`, `v1.2.3`, and `v1.2.4` provide source s
 
 Version **1.3.3** was used for private testing only. Its changes are included in **1.3.4**.
 
+## Local development checkpoints
+
+- **1.3.4.1** — local checkpoint on `archive/1.3.4.1-extra-dimming`, preserving timer development and the experimental high-dimming UI before cleanup. This is a source checkpoint, not a published release. Android version remains 1.3.4 (version code 19); its release entry and APK name are listed above.
+
 ## Prepare a release
 
 1. Set the next `versionName` and increase `versionCode` in [app/build.gradle.kts](app/build.gradle.kts). Use the version name for the tag (`vX.Y.Z`) and APK asset (`darken-X.Y.Z.apk`).

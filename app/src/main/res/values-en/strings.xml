@@ -75,7 +75,7 @@
     <string name="permission_notification_title">Notifications</string>
 
     <string name="permission_battery_title">Unrestricted battery</string>
-    <string name="permission_battery_body">Otherwise the system may stop the dimming service. Recommended on aggressive power-saving phones.</string>
+    <string name="permission_battery_body">Darken is not exempt from battery optimization. The system may therefore stop the app and turn off dimming. You can allow the exemption through “Manage system permissions”.</string>
 
     <string name="notification_channel_minimal_name">Dimming service (minimal)</string>
     <string name="notification_channel_minimal_description">Least visible notification.</string>
@@ -132,4 +132,39 @@
     <string name="settings_widget_hint_manual">To add the Darken widget, touch and hold an empty area of your home screen, open Widgets, and select Darken.</string>
     <string name="settings_widget_button">Add widget</string>
     <string name="settings_open_failed">The system settings screen could not be opened.</string>
+
+    <!-- Scheduled overlay shutdown. -->
+    <string name="timer_title">Time functions</string>
+    <string name="timer_enable">Automatically turn off</string>
+    <string name="timer_time">Turn off at</string>
+    <string name="timer_time_hint">Tap to change the time</string>
+    <string name="timer_repeat">Repeat every day</string>
+    <string name="timer_permission_hint">Allow alarms and reminders so Darken can turn off dimming at the selected time, even when the phone is asleep. This does not turn on the screen.</string>
+    <string name="timer_permission_button">Allow precise scheduling</string>
+    <string name="timer_waiting_permission">Inactive — permission required</string>
+    <string name="timer_next_today">Next shutdown today at %1$s</string>
+    <string name="timer_next_tomorrow">Next shutdown tomorrow at %1$s</string>
+    <string name="timer_next_date">Next shutdown on %1$s at %2$s</string>
+    <string name="timer_close">Close</string>
+    <string name="timer_confirm">Set</string>
+    <string name="timer_cancel">Cancel</string>
+    <string name="timer_clock_input">Choose time on clock</string>
+    <string name="timer_start_enable">Automatically turn on</string>
+    <string name="timer_start_time">Turn on at</string>
+    <string name="timer_start_permission_hint">Allow alarms and reminders so Darken can turn on dimming at the selected time, even when the phone is asleep. This does not turn on the screen.</string>
+    <string name="timer_start_overlay_hint">Allow display over other apps to enable scheduled dimming.</string>
+    <string name="timer_conflict">Both times are the same. Turning off takes priority.</string>
+    <string name="timer_start_next_today">Next startup today at %1$s</string>
+    <string name="timer_start_next_tomorrow">Next startup tomorrow at %1$s</string>
+    <string name="timer_start_next_date">Next startup on %1$s at %2$s</string>
+    <string name="high_dimming_title">Warning - High dimming</string>
+<string name="high_dimming_message" formatted="false">Above 80% dimming, Android may block touches in other apps for security reasons, including some keyboard buttons. For everyday use of your device, keeping dimming below 80% is recommended. Some apps with strict security requirements may stop working even at lower overlay levels.</string>
+<string name="high_dimming_hide">Confirm and do not show again</string>
+    <string name="high_dimming_continue">Understood</string>
+    <string name="timer_stop_section">Automatic shutdown</string>
+    <string name="timer_start_section">Automatic startup</string>
+    <string name="timer_settings_expand">Expand settings</string>
+    <string name="timer_settings_collapse">Collapse settings</string>
+    <string name="timer_expanded">Expanded</string>
+    <string name="timer_collapsed">Collapsed</string>
 </resources>

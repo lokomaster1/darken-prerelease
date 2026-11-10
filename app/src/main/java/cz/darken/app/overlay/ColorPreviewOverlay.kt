@@ -5,7 +5,6 @@ import android.graphics.PixelFormat
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import cz.darken.app.model.OverlayTint
 
 /** A temporary overlay owned by the editor's activity, independent of saved dimming state. */
 class ColorPreviewOverlay(private val context: Context) {
@@ -17,7 +16,6 @@ class ColorPreviewOverlay(private val context: Context) {
         val manager = windowManager ?: return false
         val preview = View(context).apply {
             setBackgroundColor(argb)
-            alpha = OverlayTint.alphaForDimLevel(intensity)
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -29,6 +27,7 @@ class ColorPreviewOverlay(private val context: Context) {
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
+            alpha = OverlayOpacity.alpha(intensity)
             gravity = Gravity.TOP or Gravity.START
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
@@ -47,8 +46,14 @@ class ColorPreviewOverlay(private val context: Context) {
     }
 
     fun update(argb: Int, intensity: Int) {
-        view?.setBackgroundColor(argb)
-        view?.alpha = OverlayTint.alphaForDimLevel(intensity)
+        val preview = view ?: return
+        preview.setBackgroundColor(argb)
+        val params = preview.layoutParams as WindowManager.LayoutParams
+        val alpha = OverlayOpacity.alpha(intensity)
+        if (params.alpha != alpha) {
+            params.alpha = alpha
+            windowManager?.updateViewLayout(preview, params)
+        }
     }
 
     fun close() {

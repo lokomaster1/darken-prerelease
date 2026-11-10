@@ -67,7 +67,7 @@
     <string name="permission_overlay_button">打开悬浮窗设置</string>
     <string name="permission_notification_title">通知</string>
     <string name="permission_battery_title">不受电池限制</string>
-    <string name="permission_battery_body">否则系统可能停止屏幕滤镜服务。建议在省电管理较严格的手机上开启。</string>
+    <string name="permission_battery_body">Darken 尚未获准免受电池优化限制。因此，系统可能会自行停止应用并关闭调暗。您可以通过“管理系统权限”允许此豁免。</string>
     <string name="notification_channel_minimal_name">屏幕滤镜服务（简洁）</string>
     <string name="notification_channel_minimal_description">尽量减少通知显示。</string>
     <string name="notification_channel_interactive_name">屏幕滤镜服务（交互）</string>
@@ -122,4 +122,39 @@
     <string name="settings_widget_hint_manual">如需添加 Darken 小组件，请长按主屏幕空白处，打开“小组件”，然后选择 Darken。</string>
     <string name="settings_widget_button">添加小组件</string>
     <string name="settings_open_failed">无法打开系统设置页面。</string>
+
+    <!-- Scheduled overlay shutdown. -->
+    <string name="timer_title">时间功能</string>
+    <string name="timer_enable">自动关闭</string>
+    <string name="timer_time">关闭时间</string>
+    <string name="timer_time_hint">点按更改时间</string>
+    <string name="timer_repeat">每天重复</string>
+    <string name="timer_permission_hint">允许闹钟和提醒，以便 Darken 在所选时间关闭调暗，即使手机处于休眠状态。此操作不会点亮屏幕。</string>
+    <string name="timer_permission_button">允许精确定时</string>
+    <string name="timer_waiting_permission">未启用 — 需要权限</string>
+    <string name="timer_next_today">下次关闭：今天 %1$s</string>
+    <string name="timer_next_tomorrow">下次关闭：明天 %1$s</string>
+    <string name="timer_next_date">下次关闭：%1$s %2$s</string>
+    <string name="timer_close">关闭</string>
+    <string name="timer_confirm">设置</string>
+    <string name="timer_cancel">取消</string>
+    <string name="timer_clock_input">使用时钟选择时间</string>
+    <string name="timer_start_enable">自动开启</string>
+    <string name="timer_start_time">开启时间</string>
+    <string name="timer_start_permission_hint">允许闹钟和提醒，以便 Darken 在所选时间开启调暗，即使手机处于休眠状态。此操作不会点亮屏幕。</string>
+    <string name="timer_start_overlay_hint">请允许在其他应用上层显示，以启用定时调暗。</string>
+    <string name="timer_conflict">开启和关闭时间相同。将优先关闭。</string>
+    <string name="timer_start_next_today">下次开启：今天 %1$s</string>
+    <string name="timer_start_next_tomorrow">下次开启：明天 %1$s</string>
+    <string name="timer_start_next_date">下次开启：%1$s %2$s</string>
+    <string name="high_dimming_title">警告 - 高强度调暗</string>
+<string name="high_dimming_message" formatted="false">调暗程度超过 80% 时，Android 可能会出于安全原因阻止其他应用中的触摸操作，包括某些键盘按键。日常使用设备时，建议将调暗程度保持在 80% 以下。某些安全要求较高的应用即使在较低的悬浮层调暗程度下也可能无法正常工作。</string>
+<string name="high_dimming_hide">确认并不再显示</string>
+    <string name="high_dimming_continue">明白了</string>
+    <string name="timer_stop_section">自动关闭设置</string>
+    <string name="timer_start_section">自动开启设置</string>
+    <string name="timer_settings_expand">展开设置</string>
+    <string name="timer_settings_collapse">收起设置</string>
+    <string name="timer_expanded">已展开</string>
+    <string name="timer_collapsed">已收起</string>
 </resources>

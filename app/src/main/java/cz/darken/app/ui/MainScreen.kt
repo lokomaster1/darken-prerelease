@@ -69,6 +69,7 @@ fun MainScreen(
     onSaveDefault: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTimer: () -> Unit,
     onExitApp: () -> Unit,
     colorFilterExpanded: Boolean,
     onColorFilterExpandedChange: (Boolean) -> Unit,
@@ -181,6 +182,7 @@ fun MainScreen(
                 BottomBar(
                     onOpenPermissions = onOpenPermissions,
                     onOpenSettings = onOpenSettings,
+                    onOpenTimer = onOpenTimer,
                 )
             }
         }
@@ -199,6 +201,7 @@ fun MainScreen(
 private fun BottomBar(
     onOpenPermissions: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenTimer: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -212,21 +215,34 @@ private fun BottomBar(
             style = MaterialTheme.typography.bodySmall,
             color = DarkenPalette.TextMuted,
             modifier = Modifier
+                .weight(1f)
                 .clickable(onClick = onOpenPermissions)
                 .padding(horizontal = 8.dp, vertical = 12.dp),
         )
-        IconButton(
-            onClick = onOpenSettings,
+        Row(
             modifier = Modifier
-                .offset(x = (-6).dp, y = (-6).dp)
-                .padding(end = 4.dp),
+                .offset(x = (-6).dp, y = (-6).dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_settings),
-                contentDescription = stringResource(R.string.settings_title),
-                tint = DarkenPalette.Gold,
-                modifier = Modifier.size(26.dp),
-            )
+            IconButton(onClick = onOpenTimer) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_timer),
+                    contentDescription = stringResource(R.string.timer_title),
+                    tint = DarkenPalette.Gold,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.padding(end = 4.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_settings),
+                    contentDescription = stringResource(R.string.settings_title),
+                    tint = DarkenPalette.Gold,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
         }
     }
 }

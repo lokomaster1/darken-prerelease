@@ -15,9 +15,9 @@ import android.view.View
 import android.view.WindowManager
 import androidx.core.content.getSystemService
 import cz.darken.app.MainActivityHolder
+import cz.darken.app.timer.OverlayTimerScheduler
 import cz.darken.app.R
 import cz.darken.app.data.PreferencesRepository
-import cz.darken.app.model.OverlayTint
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -65,7 +65,10 @@ class OverlayService : Service() {
         }
         serviceScope.launch {
             settingsReady.await()
-            for (command in commands) handleCommand(command.intent, command.startId)
+            for (command in commands) {
+                if (command.intent?.action == null && OverlayTimerScheduler.reconcile(applicationContext)) continue
+                handleCommand(command.intent, command.startId)
+            }
         }
     }
 
@@ -187,7 +190,6 @@ class OverlayService : Service() {
 
         val view = View(this).apply {
             setBackgroundColor(settings.tintArgb)
-            alpha = if (previewSuspended) 0f else OverlayTint.alphaForDimLevel(currentDimLevel)
         }
 
         val params = WindowManager.LayoutParams(
@@ -200,6 +202,10 @@ class OverlayService : Service() {
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
+            alpha = OverlayOpacity.alpha(
+                currentDimLevel,
+                suspended = previewSuspended || warningSuspended,
+            )
             gravity = Gravity.TOP or Gravity.START
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
@@ -220,8 +226,14 @@ class OverlayService : Service() {
 
     private fun applyOverlayAppearance() {
         val argb = settings.tintArgb
-        overlayView?.setBackgroundColor(argb)
-        overlayView?.alpha = if (previewSuspended) 0f else OverlayTint.alphaForDimLevel(currentDimLevel)
+        val view = overlayView ?: return
+        view.setBackgroundColor(argb)
+        val params = view.layoutParams as WindowManager.LayoutParams
+        val alpha = OverlayOpacity.alpha(currentDimLevel, suspended = previewSuspended || warningSuspended)
+        if (params.alpha != alpha) {
+            params.alpha = alpha
+            windowManager?.updateViewLayout(view, params)
+        }
     }
 
     private fun removeOverlay() {
@@ -312,6 +324,13 @@ class OverlayService : Service() {
     companion object {
         private var activeInstance: OverlayService? = null
         private var previewSuspended = false
+        private var warningSuspended = false
+
+        /** Visibility only: never starts/stops a service or changes its selected dimming level. */
+        fun setHighDimmingWarningVisible(visible: Boolean) {
+            warningSuspended = visible
+            activeInstance?.applyOverlayAppearance()
+        }
 
         /** Called on the main thread by the activity-owned color preview. */
         fun setColorPreviewVisible(visible: Boolean) {
@@ -347,6 +366,19 @@ class OverlayService : Service() {
                 putExtra(EXTRA_DIM_LEVEL, dimLevel)
             }
             context.startService(intent)
+        }
+
+        fun stopForScheduledShutdown(context: Context) {
+            val service = activeInstance
+            if (service != null) {
+                service.tearDown()
+            } else {
+                // Do not create a background service just to stop an absent overlay.
+                val serviceIntent = Intent(context, OverlayService::class.java)
+                context.stopService(serviceIntent)
+                OverlayStateStore.stopped()
+                OverlayUiSync.notifyOverlayStateChanged(context)
+            }
         }
 
         fun stop(context: Context) {

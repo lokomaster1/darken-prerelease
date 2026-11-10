@@ -34,6 +34,10 @@ object OverlayLauncher {
         OverlayService.stop(context)
     }
 
+    fun stopForScheduledShutdown(context: Context) {
+        OverlayService.stopForScheduledShutdown(context)
+    }
+
     fun toggle(context: Context): ToggleResult {
         if (isOverlayRunning()) {
             stop(context)

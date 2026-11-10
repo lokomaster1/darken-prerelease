@@ -75,7 +75,7 @@
     <string name="permission_notification_title">Oznámení</string>
 
     <string name="permission_battery_title">Bez omezení baterie</string>
-    <string name="permission_battery_body">Systém může jinak službu stmavení ukončit. Doporučeno na telefonech s agresivní úsporou energie.</string>
+    <string name="permission_battery_body">Darken nemá výjimku z optimalizace baterie. Systém proto může aplikaci sám ukončit a vypnout stmívání. Výjimku můžete povolit přes „Spravovat oprávnění systému“ .</string>
 
     <string name="notification_channel_minimal_name">Služba stmavení (minimální)</string>
     <string name="notification_channel_minimal_description">Nejméně viditelné oznámení.</string>
@@ -132,4 +132,39 @@
     <string name="settings_widget_hint_manual">Pro přidání widgetu Darken podržte prst na volném místě domovské obrazovky, otevřete Widgety a vyberte Darken.</string>
     <string name="settings_widget_button">Přidat widget</string>
     <string name="settings_open_failed">Nepodařilo se otevřít systémové nastavení.</string>
+
+    <!-- Scheduled overlay shutdown. -->
+    <string name="timer_title">Časové funkce</string>
+    <string name="timer_enable">Automaticky vypnout</string>
+    <string name="timer_time">Vypnout v</string>
+    <string name="timer_time_hint">Klepnutím změnit čas</string>
+    <string name="timer_repeat">Opakovat každý den</string>
+    <string name="timer_permission_hint">Povolte budíky a připomenutí, aby Darken vypnul ztmavení ve zvolený čas i při uspání telefonu. Displej se tím nerozsvítí.</string>
+    <string name="timer_permission_button">Povolit přesné plánování</string>
+    <string name="timer_waiting_permission">Neaktivní — vyžaduje oprávnění</string>
+    <string name="timer_next_today">Další vypnutí dnes v %1$s</string>
+    <string name="timer_next_tomorrow">Další vypnutí zítra v %1$s</string>
+    <string name="timer_next_date">Další vypnutí %1$s v %2$s</string>
+    <string name="timer_close">Zavřít</string>
+    <string name="timer_confirm">Nastavit</string>
+    <string name="timer_cancel">Zrušit</string>
+    <string name="timer_clock_input">Vybrat čas na hodinách</string>
+    <string name="timer_start_enable">Automaticky zapnout</string>
+    <string name="timer_start_time">Zapnout v</string>
+    <string name="timer_start_permission_hint">Povolte budíky a připomenutí, aby Darken zapnul ztmavení ve zvolený čas i při uspání telefonu. Displej se tím nerozsvítí.</string>
+    <string name="timer_start_overlay_hint">Pro plánované zapnutí povolte zobrazování přes ostatní aplikace.</string>
+    <string name="timer_conflict">Oba časy jsou stejné. Přednost má vypnutí.</string>
+    <string name="timer_start_next_today">Další zapnutí dnes v %1$s</string>
+    <string name="timer_start_next_tomorrow">Další zapnutí zítra v %1$s</string>
+    <string name="timer_start_next_date">Další zapnutí %1$s v %2$s</string>
+    <string name="high_dimming_title">Upozornění - Silné ztmavení</string>
+<string name="high_dimming_message" formatted="false">Při ztmavení nad 80 % může Android blokovat z bezpečnostních důvodů dotyky v jiných aplikacích, včetně tlačítek některých klávesnic. Na běznou činnost na zařízení je doporučeno ztmavení ponechat pod 80%. Některé aplikace s vysokými bezpečnostními požadavky mohou přestat fungovat i při nižší nastavené úrovni překrytí</string>
+<string name="high_dimming_hide">Potvrdit a nezobrazovat</string>
+    <string name="high_dimming_continue">Rozumím</string>
+    <string name="timer_stop_section">Automatické vypínání</string>
+    <string name="timer_start_section">Automatické zapínání</string>
+    <string name="timer_settings_expand">Rozbalit nastavení</string>
+    <string name="timer_settings_collapse">Sbalit nastavení</string>
+    <string name="timer_expanded">Rozbaleno</string>
+    <string name="timer_collapsed">Sbaleno</string>
 </resources>

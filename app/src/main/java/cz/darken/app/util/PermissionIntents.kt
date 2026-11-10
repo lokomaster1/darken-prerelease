@@ -78,6 +78,12 @@ object PermissionIntents {
         appDetailsSettings(context),
     )
 
+    fun openExactAlarmSettings(context: Context): Boolean = openFirstAvailable(
+        context,
+        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:${context.packageName}".toUri()),
+        appDetailsSettings(context),
+    )
+
     fun openAppDetailsSettings(context: Context): Boolean =
         openFirstAvailable(context, appDetailsSettings(context))
 
